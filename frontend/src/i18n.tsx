@@ -169,6 +169,15 @@ const DICT: Dict = {
   "diff.orta": { tr: "Orta", en: "Medium", de: "Mittel", ru: "Средне", it: "Medio", fr: "Moyen", ar: "متوسط", zh: "中等" },
   "diff.zor": { tr: "Zor", en: "Hard", de: "Schwer", ru: "Сложно", it: "Difficile", fr: "Difficile", ar: "صعب", zh: "困难" },
   "diff.uzman": { tr: "Uzman", en: "Expert", de: "Experte", ru: "Эксперт", it: "Esperto", fr: "Expert", ar: "خبير", zh: "专家" },
+
+  "notif.title": { tr: "Bildirimler", en: "Notifications", de: "Benachrichtigungen", ru: "Уведомления", it: "Notifiche", fr: "Notifications", ar: "الإشعارات", zh: "通知" },
+  "notif.empty": { tr: "Henüz bildirim yok", en: "No notifications yet", de: "Noch keine Benachrichtigungen", ru: "Уведомлений пока нет", it: "Nessuna notifica", fr: "Aucune notification", ar: "لا توجد إشعارات بعد", zh: "暂无通知" },
+  "notif.emptyHint": { tr: "Puan kazandığında, yorum aldığında veya biri seninle soru paylaştığında burada göreceksin.", en: "You'll see updates when you earn points, get comments, or someone shares with you.", de: "Hier siehst du Punkte, Kommentare und geteilte Fragen.", ru: "Здесь будут очки, комментарии и общие вопросы.", it: "Vedrai punti, commenti e condivisioni.", fr: "Tu verras tes points, commentaires et partages.", ar: "ستظهر هنا نقاطك وتعليقاتك ومشاركاتك.", zh: "积分、评论和分享都会显示在这里。" },
+  "notif.markAllRead": { tr: "Tümünü okundu işaretle", en: "Mark all as read", de: "Alle als gelesen", ru: "Отметить все прочитанным", it: "Segna tutto come letto", fr: "Tout marquer comme lu", ar: "تحديد الكل كمقروء", zh: "全部标记为已读" },
+  "notif.justNow": { tr: "Az önce", en: "Just now", de: "Gerade eben", ru: "Только что", it: "Proprio ora", fr: "À l'instant", ar: "الآن", zh: "刚刚" },
+  "notif.minsAgo": { tr: "{n} dk önce", en: "{n}m ago", de: "Vor {n} Min.", ru: "{n} мин. назад", it: "{n} min fa", fr: "Il y a {n} min", ar: "منذ {n} دقيقة", zh: "{n}分钟前" },
+  "notif.hoursAgo": { tr: "{n} saat önce", en: "{n}h ago", de: "Vor {n} Std.", ru: "{n} ч. назад", it: "{n} ore fa", fr: "Il y a {n}h", ar: "منذ {n} ساعة", zh: "{n}小时前" },
+  "notif.daysAgo": { tr: "{n} gün önce", en: "{n}d ago", de: "Vor {n} Tagen", ru: "{n} дн. назад", it: "{n} giorni fa", fr: "Il y a {n}j", ar: "منذ {n} يوم", zh: "{n}天前" },
 };
 
 function deviceLang(): Lang {

@@ -27,6 +27,7 @@ import {
   fetchComments,
   fetchFeed,
   fetchPeople,
+  fetchUnreadCount,
   fileUrl,
   sendMessage,
   toggleSave,
@@ -67,6 +68,7 @@ export default function FeedScreen() {
   const [shareOpen, setShareOpen] = useState(false);
   const [people, setPeople] = useState<Person[]>([]);
   const [note, setNote] = useState("");
+  const [unreadCount, setUnreadCount] = useState(0);
 
   // Doğru cevap puan bildirimi: aşağıdan yukarı kayar, 3 sn durur, kaybolur.
   const popupOffset = useSharedValue(140);
@@ -102,6 +104,8 @@ export default function FeedScreen() {
   useFocusEffect(useCallback(() => {
     load(loadedOnce.current);
     loadedOnce.current = true;
+    // Fetch unread notification count
+    fetchUnreadCount().then((r) => setUnreadCount(r.count)).catch(() => {});
   }, [load]));
 
   const answer = async (question: Question, index: number) => {
@@ -257,9 +261,13 @@ export default function FeedScreen() {
             </View>
           </View>
         </Pressable>
-        <Pressable testID="feed-messages-button" onPress={() => router.navigate("/(tabs)/chat")} style={({ pressed }) => [styles.headerIconButton, pressed && { opacity: 0.75 }]}>
-          <Ionicons name="chatbubble-ellipses-outline" size={18} color={colors.onSurfaceInverse} />
-          <View style={[styles.messageDot, { backgroundColor: colors.brandSecondary }]} />
+        <Pressable testID="feed-notifications-button" onPress={() => router.push("/notifications")} style={({ pressed }) => [styles.headerIconButton, pressed && { opacity: 0.75 }]}>
+          <Ionicons name="notifications-outline" size={18} color={colors.onSurfaceInverse} />
+          {unreadCount > 0 && (
+            <View style={[styles.notifBadge, { backgroundColor: colors.brandPrimary }]}>
+              <Text style={styles.notifBadgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text>
+            </View>
+          )}
         </Pressable>
       </View>
 
@@ -533,7 +541,8 @@ const useStyles = makeStyles((colors) => StyleSheet.create({
   rankPointsRow: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 1 },
   rankPoints: { color: colors.onSurfaceInverse, opacity: 0.78, fontSize: 9, fontWeight: "700" },
   headerIconButton: { width: 40, height: 40, borderRadius: 14, backgroundColor: "rgba(18,14,11,0.45)", borderWidth: 1, borderColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
-  messageDot: { position: "absolute", top: 7, right: 7, width: 7, height: 7, borderRadius: 4 },
+  notifBadge: { position: "absolute", top: 4, right: 4, minWidth: 16, height: 16, borderRadius: 8, alignItems: "center", justifyContent: "center", paddingHorizontal: 3 },
+  notifBadgeText: { color: "#FFFFFF", fontSize: 8, fontWeight: "900" },
   pointsPopup: { position: "absolute", left: 16, right: 16, borderRadius: 18, padding: 13, flexDirection: "row", alignItems: "center", gap: 10, shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 16, elevation: 10 },
   pointsPopupIcon: { width: 32, height: 32, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   pointsPopupTitle: { color: colors.onSurface, fontSize: 13, fontWeight: "900" },

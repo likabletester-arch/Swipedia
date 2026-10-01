@@ -329,6 +329,8 @@ async def seed_database() -> None:
     await db.questions.create_index("question_id", unique=True)
     await db.saved_questions.create_index([("user_id", 1), ("question_id", 1)], unique=True)
     await db.uploads.create_index("path", unique=True)
+    await db.notifications.create_index([("user_id", 1), ("created_at", -1)])
+    await db.notifications.create_index("notification_id", unique=True)
 
 
 @app.on_event("startup")
@@ -367,6 +369,7 @@ async def register(credentials: Credentials) -> Dict[str, Any]:
         "created_at": now_utc(),
     }
     await db.users.insert_one(user.copy())
+    await create_notification(user["user_id"], "system", "Swipedia'ya hoş geldin!", "Soruları kaydırarak keşfet, doğru cevapla ve rütbe atla.", "rocket-outline")
     return {"session_token": await create_session(user["user_id"]), "user": public_user(user)}
 
 
@@ -395,6 +398,7 @@ async def guest(request: GuestRequest) -> Dict[str, Any]:
         "created_at": now_utc(),
     }
     await db.users.insert_one(user.copy())
+    await create_notification(guest_id, "system", "Swipedia'ya hoş geldin!", "Soruları kaydırarak keşfet, doğru cevapla ve rütbe atla.", "rocket-outline")
     return {"session_token": await create_session(guest_id), "user": public_user(user)}
 
 
@@ -542,6 +546,10 @@ async def answer(question_id: str, payload: AnswerRequest, user: Dict[str, Any] 
         user["correct_count"] = next_count
         user["point_progress"] = progress
         user["points"] = points
+        if earned > 0:
+            await create_notification(user["user_id"], "points", f"+{earned} puan kazandın!", f"Toplam puanın: {points}", "sparkles", question_id)
+        if next_count % 10 == 0:
+            await create_notification(user["user_id"], "points", f"{next_count} doğru cevap!", f"Harika gidiyorsun! {progress}/{rate} ilerleme.", "flame-outline", question_id)
     return {
         "correct": correct,
         "already_answered": False,
@@ -582,6 +590,11 @@ async def add_comment(question_id: str, payload: CommentRequest, user: Dict[str,
     comment = {"comment_id": f"c_{uuid.uuid4().hex[:12]}", "question_id": question_id, "user_id": user["user_id"], "user_name": user["name"], "text": payload.text, "created_at": now_utc().isoformat()}
     await db.comments.insert_one(comment.copy())
     await db.questions.update_one({"question_id": question_id}, {"$inc": {"comments_count": 1}})
+    # Notify question author about the new comment
+    question = await db.questions.find_one({"question_id": question_id}, {"_id": 0, "author_id": 1, "text": 1})
+    if question and question.get("author_id") and question["author_id"] != user["user_id"]:
+        snippet = (question.get("text") or "")[:40]
+        await create_notification(question["author_id"], "comment", f"{user['name']} yorum yaptı", f'"{snippet}…" sorusuna: {payload.text[:60]}', "chatbubble-outline", question_id)
     return comment
 
 
@@ -656,6 +669,7 @@ async def send_message(other_user_id: str, payload: MessageCreate, user: Dict[st
     )
     if payload.question_id:
         await db.questions.update_one({"question_id": payload.question_id}, {"$inc": {"shares_count": 1}})
+        await create_notification(other_user_id, "share", f"{user['name']} seninle bir soru paylaştı", payload.text[:80], "paper-plane-outline", payload.question_id)
     return message
 
 
@@ -663,6 +677,66 @@ async def send_message(other_user_id: str, payload: MessageCreate, user: Dict[st
 async def people(user: Dict[str, Any] = Depends(get_current_user)) -> List[Dict[str, Any]]:
     rows = await db.users.find({"user_id": {"$ne": user["user_id"]}, "provider": {"$ne": "guest"}}, {"_id": 0, "user_id": 1, "name": 1, "bio": 1, "points": 1, "avatar": 1}).to_list(20)
     return rows
+
+
+# ---------- Notifications ----------
+
+NOTIFICATION_TYPES = {"points", "rank_up", "comment", "share", "system"}
+
+
+async def create_notification(
+    user_id: str,
+    notif_type: str,
+    title: str,
+    body: str,
+    icon: str = "notifications-outline",
+    ref_id: Optional[str] = None,
+) -> None:
+    """Persist an in-app notification for *user_id*."""
+    doc = {
+        "notification_id": f"n_{uuid.uuid4().hex[:12]}",
+        "user_id": user_id,
+        "type": notif_type,
+        "title": title,
+        "body": body,
+        "icon": icon,
+        "ref_id": ref_id or "",
+        "read": False,
+        "created_at": now_utc().isoformat(),
+    }
+    await db.notifications.insert_one(doc)
+
+
+@api_router.get("/notifications")
+async def get_notifications(user: Dict[str, Any] = Depends(get_current_user)) -> List[Dict[str, Any]]:
+    rows = await db.notifications.find(
+        {"user_id": user["user_id"]}, {"_id": 0}
+    ).sort("created_at", -1).to_list(100)
+    return rows
+
+
+@api_router.get("/notifications/unread-count")
+async def unread_count(user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, int]:
+    count = await db.notifications.count_documents({"user_id": user["user_id"], "read": False})
+    return {"count": count}
+
+
+@api_router.post("/notifications/{notification_id}/read")
+async def mark_read(notification_id: str, user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, bool]:
+    result = await db.notifications.update_one(
+        {"notification_id": notification_id, "user_id": user["user_id"]},
+        {"$set": {"read": True}},
+    )
+    return {"ok": result.modified_count > 0}
+
+
+@api_router.post("/notifications/read-all")
+async def mark_all_read(user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, bool]:
+    await db.notifications.update_many(
+        {"user_id": user["user_id"], "read": False},
+        {"$set": {"read": True}},
+    )
+    return {"ok": True}
 
 
 # ---------- Uploads (soru arka planları) ----------

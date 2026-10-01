@@ -46,6 +46,17 @@ export type Person = { user_id: string; name: string; bio?: string; points?: num
 export type Message = { message_id: string; sender_id: string; recipient_id: string; sender_name: string; text: string; question_id?: string; created_at: string };
 export type Conversation = { participants: string[]; other_name: string; last_message: string; updated_at: string };
 export type Leader = { rank: number; user_id: string; name: string; points: number; correct_count: number };
+export type Notification = {
+  notification_id: string;
+  user_id: string;
+  type: string;
+  title: string;
+  body: string;
+  icon: string;
+  ref_id: string;
+  read: boolean;
+  created_at: string;
+};
 
 let memoryToken: string | null = null;
 
@@ -137,6 +148,11 @@ export const fetchConversations = () => api<Conversation[]>("/conversations", {}
 export const fetchMessages = (userId: string) => api<Message[]>(`/conversations/${userId}/messages`, {}, true);
 export const sendMessage = (userId: string, text: string, questionId?: string) =>
   api<Message>(`/conversations/${userId}/messages`, { method: "POST", body: JSON.stringify({ text, question_id: questionId }) }, true);
+
+export const fetchNotifications = () => api<Notification[]>("/notifications", {}, true);
+export const fetchUnreadCount = () => api<{ count: number }>("/notifications/unread-count", {}, true);
+export const markNotificationRead = (notificationId: string) => api<{ ok: boolean }>(`/notifications/${notificationId}/read`, { method: "POST" }, true);
+export const markAllNotificationsRead = () => api<{ ok: boolean }>("/notifications/read-all", { method: "POST" }, true);
 
 // Depolanan bir dosyanın (ör. soru arka planı) görüntülenebilir URL'i.
 // Web'de <img> header gönderemediği için token query param olarak eklenir.
