@@ -1,0 +1,40 @@
+{
+  "summary": "Swipedia full-stack test (backend pytest 21/21 PASS, frontend Playwright all critical flows PASS). Found and fixed one CRITICAL backend bug: POST /api/conversations/{user_id}/messages returned 500 (MongoDB WriteError 'path participants is matched twice' on upsert at server.py:405) — fixed with deterministic pair_key + $setOnInsert. Feed answer/save/comments/questions/leaderboard/people all verified with data persistence checks. Frontend: email login, guest login, UI registration, wrong-password error, TikTok-style paging, answer feedback + points pill update, comments sheet, share-to-person with toast, question creation, chat inbox→conversation→send, profile/leaderboard/logout all work in Turkish. No 'TikiLearn' strings anywhere (UI, code, DB verified). No deprecated Expo packages.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/conversations/{user_id}/messages + GET /api/conversations", "issue": "conversation.other_name is stored from the sender's perspective (recipient's name at send time). When the recipient opens their inbox, the conversation row shows their OWN name until they reply (which overwrites other_name). Recommend computing other_name at read time per requester."},
+      {"endpoint": "POST /api/conversations/{user_id}/messages", "issue": "Pre-fix behavior: message doc was inserted BEFORE the failing conversation upsert, so messages persisted despite 500 responses (partial write). Fixed now, but orphaned messages from the broken window exist in DB (harmless)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "CreateScreen correct answer radio", "issue": "correct-radio-0..3 touch target is 22x22px, below the 44px minimum guideline (functional but hard to tap on real devices)", "testID": "correct-radio-0", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "feed comments sheet", "issues": ["comment-send-button was momentarily unclickable ('element outside of viewport') when clicked during the sheet's slide-up animation; works fine after animation settles (~1s). Flaky once, not reproducible after waiting."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_swipedia_api.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "Fix conversation other_name perspective: compute the OTHER participant's name at read time in GET /api/conversations instead of storing a single other_name on the shared doc",
+    "Increase correct-radio-* touch target to 44x44 (e.g. hitSlop or larger wrapper) on the create screen",
+    "Optional: clean up messages inserted during the broken-upsert window (they reference conversations that never materialized)"
+  ],
+  "critical_code_review_comments": [
+    "FIXED: server.py send_message upsert used $all filter + $set on same 'participants' path -> MongoDB WriteError code 54 on every first message between two users (broke share-to-person and chat send). Fixed via sorted pair_key with $setOnInsert.",
+    "server.py is 420 lines, clean, Pydantic validation present, no _id leakage in responses, no hardcoded URLs/credentials.",
+    "Frontend properly uses process.env.EXPO_PUBLIC_BACKEND_URL via expo-constants; no hardcoded backend URLs.",
+    "Feed points pill derives from user.correct_count % 25 and user.points — consistent with backend points = correct_count // 25.",
+    "All interactive elements have testID attributes; styles via StyleSheet.create; no HTML elements or className usage."
+  ],
+  "updated_files": ["/app/backend/server.py", "/app/backend/tests/test_swipedia_api.py"],
+  "success_rate": {"backend": "100% (21/21 after fix; was 20/21 with 500 on send message)", "frontend": "100% (all critical flows passed)"},
+  "seed_data_creation": "Created test data: TEST_ registered users, TEST questions (Mars/Ankara), TEST comments, TEST messages to TEST Kayıt user, guest users. All prefixed with TEST or Guest.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend messaging was broken (500 on first message between any pair) and is now fixed via pair_key upsert in server.py:404-413 — regression test exists (TestSocial.test_send_and_get_message). Conversation doc schema now includes pair_key field. Login: swipedia-test@example.com/secret123 or guest button. Playwright: wait ~1.2s after opening bottom sheets before clicking buttons inside (slide animation). Vertical paging on web works via mouse wheel/scroll (drag selects text instead). Remaining known issue: inbox conversation other_name perspective bug (shows recipient their own name until they reply).",
+  "rca_of_issue": "Bug: POST /api/conversations/{user_id}/messages -> 500 on first message between two users. RCA: db.conversations.update_one used filter {'participants': {'$all': participants}} with $set on the same 'participants' path; MongoDB cannot reconcile query-inferred fields with $set on the same path during upsert -> WriteError code 54 'path participants is matched twice'. Reproduction: login as any user, POST a message to any other user -> 500 (message row inserted but conversation row never created; 100% reproducible). Mitigation applied: deterministic pair_key = sorted(user_ids).join(':') as upsert filter, participants moved to $setOnInsert, other fields in $set. Verified: full pytest suite 21/21 green and end-to-end UI share/message flows pass."
+}

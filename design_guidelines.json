@@ -1,0 +1,157 @@
+{
+  "app_name": "Swipedia",
+  "personality": "4 Tactile / Playful LIGHT",
+  "personality_one_liner": "An immersive social micro-learning feed where trivia meets TikTok-style swiping, playful gamification, and peer-to-peer knowledge sharing.",
+  "color": {
+    "surface": "#FFFDF9",
+    "onSurface": "#1F1C18",
+    "surfaceSecondary": "#F5EFE6",
+    "onSurfaceSecondary": "#3D3832",
+    "surfaceTertiary": "#EAE0D0",
+    "onSurfaceTertiary": "#59524A",
+    "surfaceInverse": "#1F1C18",
+    "onSurfaceInverse": "#FFFDF9",
+    "brand": "#FF6B4A",
+    "brandPrimary": "#FF6B4A",
+    "onBrandPrimary": "#FFFFFF",
+    "brandSecondary": "#FF8C6B",
+    "onBrandSecondary": "#FFFFFF",
+    "brandTertiary": "#FFE5DC",
+    "onBrandTertiary": "#D43B17",
+    "success": "#2D9D78",
+    "onSuccess": "#FFFFFF",
+    "warning": "#E5A93B",
+    "onWarning": "#1F1C18",
+    "error": "#E05A47",
+    "onError": "#FFFFFF",
+    "info": "#3A86FF",
+    "onInfo": "#FFFFFF",
+    "border": "#E6DCD0",
+    "borderStrong": "#D9C8B8",
+    "divider": "#EFE6DC",
+    "muted": "#7A7065",
+    "onBrand": "#FFFFFF"
+  },
+  "typography": {
+    "displayFontFamily": "Fredoka",
+    "textFontFamily": "Plus Jakarta Sans",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Generous playful touch targets, chunky rounded cards, and vertical breathing room with sticky bottom navigation and action sheets.",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 8,
+    "md": 16,
+    "lg": 24,
+    "pill": 999
+  },
+  "shadow_tier": 2,
+  "navigation": "bottom_tabs",
+  "icon_set": "Phosphor",
+  "glassmorphism": {
+    "enabled": true,
+    "do's": [
+      "Use frosted glass on sticky headers, bottom navigation bar, and interactive floating action sheets over scrolling quiz feeds."
+    ],
+    "dont's": [
+      "Never blur body text, quiz answer buttons, or dense form inputs."
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "screens": [
+    {
+      "name": "Feed",
+      "purpose": "Full-screen vertical swipeable TikTok-style quiz and micro-learning feed with multiple-choice options, instant feedback, and engagement action rail.",
+      "states": {
+        "loading": "Animated bouncy pulsing skeleton cards matching feed aspect ratios.",
+        "empty": "Cheerful illustrated empty state with prompt to explore trending topics or create a new question.",
+        "error": "Friendly error banner with retry button and offline cache indicator."
+      },
+      "layout": "Vertical full-screen PagerView or FlatList with pagingEnabled. Each item displays a rich background visual with a gradient scrim, author badge, category pill, engaging question text, 4 tactile multiple-choice answer tiles, and a right-side floating action rail (like, comment sheet trigger, bookmark, share-to-friends modal trigger)."
+    },
+    {
+      "name": "CreateQuestion",
+      "purpose": "Allow users to author, format, and publish their own educational trivia questions to the global feed.",
+      "states": {
+        "loading": "Publishing indicator with animated spinner.",
+        "empty": "Clean form with placeholders for question text, category, 4 options, and correct answer selection.",
+        "error": "Validation error prompt highlighting missing fields."
+      },
+      "layout": "Scrollable form with category selector pills, multiline question input, 4 option rows with correct-answer radio toggles, media upload picker, and sticky bottom Publish CTA."
+    },
+    {
+      "name": "Leaderboard",
+      "purpose": "Display user ranking progress based on the 25-correct-answers-per-1-point rule and active tier ranks.",
+      "states": {
+        "loading": "Shimmer rows simulating top user ranks.",
+        "empty": "Encouraging state inviting users to answer their first 25 questions to earn their rank.",
+        "error": "Failed to load leaderboard message with retry button."
+      },
+      "layout": "Header featuring user's current rank card and progress towards the next point (e.g. 18/25 correct), followed by a ranked list of top learners with avatar, username, points, and correct answer counts."
+    },
+    {
+      "name": "ChatInbox",
+      "purpose": "List direct messages and friend connections for chatting and sharing interesting questions directly.",
+      "states": {
+        "loading": "Skeleton chat list rows.",
+        "empty": "Friendly illustration with button to discover and add friends.",
+        "error": "Network error banner with reconnect button."
+      },
+      "layout": "Conversations list with search bar, online status avatars, unread badges, and quick tap to open chat or share shared questions."
+    },
+    {
+      "name": "Profile",
+      "purpose": "Showcase user statistics, earned points, rank, saved questions, and authored trivia posts.",
+      "states": {
+        "loading": "Profile header skeleton with tab placeholders.",
+        "empty": "No saved questions or posts yet message with CTA to explore feed.",
+        "error": "Error loading profile data with retry button."
+      },
+      "layout": "Profile header with avatar, bio, total points, rank badge, tab selector (My Posts, Saved Questions, Stats), and grid/list of user content."
+    }
+  ],
+  "images": {
+    "hero_learning": {
+      "url": "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=1200&auto=format&fit=crop",
+      "dark": "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=1200&auto=format&fit=crop",
+      "alt": "Students learning collaboratively with vibrant backdrop"
+    },
+    "empty_state_art": {
+      "url": "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?q=80&w=800&auto=format&fit=crop",
+      "alt": "Playful educational notebook and stationery"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Implement Swipedia as a Tactile/Playful Light mobile app using Expo, React Native Reanimated, and Gorhom Bottom Sheet.",
+    "Ensure the core Explore feed is a vertical swipeable TikTok-style quiz experience where every 25 correct answers yields 1 point.",
+    "Include fully interactive multiple-choice quiz tiles with instant tactile feedback (success/error state animations).",
+    "Build bottom sheet modals for comments, bookmarking, and share-to-friends messaging.",
+    "Include Google and Email/Password authentication entry points with demo guest mode access.",
+    "Adhere strictly to the Spacing, Layout, Glassmorphism, and Typography rules specified in design guidelines."
+  ]
+}

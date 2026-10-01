@@ -1,0 +1,41 @@
+{
+  "summary": "Swipedia v2 full-stack test: backend pytest 22/22 PASS, frontend Playwright all 19 steps PASS. Verified: decimal difficulty points (kolay=0.10 earned, accumulates 0.1->0.6->0.85->1.85 as float across zor/orta/uzman, persisted via /auth/me), invalid difficulty 422, question create with difficulty+background persists to feed, real Emergent Object Storage upload (1x1 PNG -> path -> GET /api/files/{path}?token= returns exact bytes, 401 without/invalid token), conversations other_name computed from OTHER participant on both sides (perspective bug fix confirmed). Frontend: guest login -> rank-badge (Vatandaş + puan, top-left) + feed-messages-button (top-right), old 0/25 pill GONE, correct answer -> answer-feedback 'Bildin!' + points-popup '+0.1 puan / 1/50 doğru · Toplam 0.1 puan' visible then slides away after ~3.5s (y=846), 2x2 option grid confirmed via bounding boxes (opt0/opt1 same row), author avatar circle + @name on cards, custom tab bar order [Oluştur, Rütbeler, Keşfet(raised center), Mesaj, Profil] all navigate, ranks screen with current-rank-card + 6 rank rows + Buradasın chip on citizen, rank-badge taps to ranks, create screen difficulty chips + background tiles (Klasik/preset-0..3/Yükle), publish with zor+preset-0 -> new question first in feed WITH rendered image background + dark scrim (screenshot verified), profile rank chip + decimal points + x/50 progress card, email login swipedia-test@example.com/secret123 works, chat send/receive end-to-end works with correct other_name in inbox. No console errors, no TikiLearn strings, no deprecated Expo packages.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/questions/{id}/answer", "issue": "milestone +1 bonus at 50 correct answers not covered by automated test (would need 50 seeded answers); code path reviewed at server.py:400-407 and logic is correct (next_count % 50 == 0 adds 1.0). Manually verified logic only."},
+      {"endpoint": "startup", "issue": "one earlier backend startup logged 'Object storage init failed: 400' from integrations.emergentagent.com (likely transient/key timing); latest startup clean and real upload+fetch roundtrip passes."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "feed / create / ranks", "issues": ["Several labels now 9px (rankPoints, bgLabel, rankRange, hereChipText, profileStatLabel) after the ~40% font reduction — below comfortable mobile readability; functional but consider 10px floor", "points popup shows '+0.1 puan' (formatPoints trims trailing zero) vs spec's '+0.10 puan' style — cosmetic deviation, not a bug"]}
+    ],
+    "react_native_issues": [
+      {"component": "styles (feed/custom-tab-bar)", "issue": "React Native Web deprecation warnings in console: 'shadow* style props are deprecated. Use boxShadow' (index.tsx:456, custom-tab-bar.tsx:97) and 'props.pointerEvents is deprecated. Use style.pointerEvents' (index.tsx:241 header View). Non-breaking on web preview but should be migrated for future RN versions."},
+      {"component": "ranks.ts", "issue": "Citizen rank range label reads '1-50 puan' but min is 0 — a 0-puan user IS Vatandaş while the row implies rank starts at 1. Reference: /app/frontend/src/ranks.ts:15"}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_swipedia_api.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "Optional: migrate shadow* style props to boxShadow and pointerEvents prop to style.pointerEvents (RN-web deprecation warnings)",
+    "Optional: fix Citizen range label '1-50 puan' -> '0-50 puan' in src/ranks.ts:15",
+    "Optional: raise 9px labels to >=10px for readability"
+  ],
+  "critical_code_review_comments": [
+    "server.py (576 lines) clean: Pydantic validation, invalid difficulty -> explicit 422, no _id leakage, env-only config, decimal points rounded to 2dp with float-safe accumulation, answer idempotency via answer_key.",
+    "GET /api/files/{path} correctly accepts token via query param (web <img> can't send headers) and validates session expiry.",
+    "frontend api.ts uses Constants.expoConfig.extra.backendUrl || process.env.EXPO_PUBLIC_BACKEND_URL — no hardcoded URLs.",
+    "All interactive elements have testID; StyleSheet.create used throughout; all text wrapped in Text; FlatList virtualization fine on web.",
+    "CardBackground correctly distinguishes remote http backgrounds vs storage paths (resolves via fileUrl with token)."
+  ],
+  "updated_files": ["/app/backend/tests/test_swipedia_api.py"],
+  "success_rate": {"backend": "100% (22/22)", "frontend": "100% (19/19 steps across 2 Playwright runs)"},
+  "seed_data_creation": "TEST_ registered users (TEST Puan/TEST Yanlış/TEST Alice/TEST Bob/TEST Kayıt), TEST puan questions per difficulty, TEST question with uzman+unsplash background, TEST UI question with preset-0 background (marker 54b674), TEST comments/messages, guest users. 1x1 PNG uploaded to object storage under swipedia/uploads/.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "All v2 features verified working. Test user swipedia-test@example.com points display '0' (post-migration) — expected. Feed sorts newest-first, so TEST_* questions appear at top; TEST puan questions always have correct option 0 ('Doğru'). Points popup hides via translateY(140) not unmount — check boundingBox y >= viewport height to verify dismissal. Playwright locator() is not awaitable (bug hit once). pytest.ini forces xdist -n2; avoid class-attr state sharing between tests in different workers. Object storage init logs warning only on failure; silence = OK.",
+  "rca_of_issue": "No bugs found this iteration. Only test-side fixes: multipart upload test needed no JSON Content-Type header (else FastAPI 422 'Field required'), and xdist class-attr sharing was refactored into a single self-contained upload test."
+}
