@@ -101,3 +101,45 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+## Session: Verified registration + account editing + guest gate (June 2026)
+backend:
+  - task: "Two-step verified registration (phone mandatory + email OTP)"
+    file: "/app/backend/server.py"
+    implemented: true
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        comment: "POST /api/auth/register/request-code (email,phone,password,name) sends 6-digit OTP via Emergent Resend; POST /api/auth/register/verify creates the user. Codes hashed (HMAC) in verification_codes with 10min TTL and 5-attempt limit."
+  - task: "Change password / change email+phone with email OTP confirmation"
+    file: "/app/backend/server.py"
+    implemented: true
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        comment: "POST /api/users/me/password (current+new). POST /api/users/me/request-change-code {field} sends OTP to CURRENT email. POST /api/users/me/confirm-change {field,code} applies change. PATCH /api/users/me now accepts avatar."
+  - task: "Guest answered_count in answer response"
+    file: "/app/backend/server.py"
+    implemented: true
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        comment: "POST /api/questions/{id}/answer returns answered_count (total answers for the user) for guest 5-question gating. public_user now returns is_guest, phone, email_verified."
+frontend:
+  - task: "Register UI with phone + OTP code step; settings account editing; guest gate modal"
+    file: "/app/frontend/app/login.tsx, /app/frontend/app/settings.tsx, /app/frontend/app/(tabs)/index.tsx"
+    implemented: true
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        comment: "Frontend only; smoke-tested via screenshot. Backend is the focus of this test run."
+metadata:
+  created_by: "main_agent"
+test_plan:
+  current_focus:
+    - "Two-step verified registration (phone mandatory + email OTP)"
+    - "Change password / change email+phone with email OTP confirmation"
+    - "Guest answered_count in answer response"
+  stuck_tasks: []
+agent_communication:
+  - agent: "main"
+    message: "Please test NEW backend endpoints only. OTP codes are emailed (cannot read them in tests); verify validation/flow behavior: request-code returns ok for unused email and 409 for existing; verify with wrong code returns 400; password change requires correct current password (403 otherwise); request-change-code requires a real (non-guest) email and rejects taken emails with 409; answer endpoint returns answered_count. Do NOT attempt to read OTP codes from email. Existing login/guest/feed should still work."

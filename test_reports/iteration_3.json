@@ -1,0 +1,39 @@
+{
+  "summary": "Swipedia v6 verified-registration + settings-account-editing backend test run: 15/16 passed, 1 skipped due to a REAL backend bug (not a test flake). Verified: POST /auth/register/request-code returns {ok:true} for an unused email with valid phone+password, 409 for the already-registered swipedia-test@example.com, 422 for missing phone / short password / too-short phone; POST /auth/register/verify returns 400 for a wrong code and does NOT create a user (login with that email returns 401); POST /auth/login still works with swipedia-test@example.com/secret123 and returns new public_user fields is_guest=false, phone (string), email_verified (bool); POST /auth/guest returns is_guest=true; POST /questions/{id}/answer returns numeric answered_count that increments on consecutive guest answers (1 -> 2); POST /users/me/password returns 403 for wrong current_password and 200 {ok:true} for correct; after a round-trip rename the test account password is back to secret123 and re-login succeeds; POST /users/me/request-change-code returns 409 for a taken email and 400 for a guest account; POST /users/me/confirm-change returns 400 for a wrong code; PATCH /users/me with {avatar:'some/path'} returns user.avatar=that path and GET /auth/me confirms persistence. BUG FOUND: POST /users/me/request-change-code against the test account itself returns 500 Internal Server Error because Resend (Emergent-managed) blocks swipedia-test@example.com with 'Undeliverable recipient' (422) and server.py:778 lets the httpx.HTTPStatusError bubble up uncaught. Same uncaught-exception risk exists in POST /auth/register/request-code for any Resend-blocked recipient (register/{non-deterministic}@example.com worked, but swipedia-test does not).",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/users/me/request-change-code", "issue": "Unhandled httpx.HTTPStatusError from Emergent email provider -> 500 Internal Server Error when Resend rejects the recipient (e.g. 'Undeliverable recipient' 422 for swipedia-test@example.com). send_verification_code also persists the code BEFORE calling send_email, so a 500 leaves a dangling verification row until TTL. Need try/except around send_email in server.py:778 (and symmetrically at register_request_code line 577) that (a) deletes the just-inserted code, (b) returns a 502/400 with a Turkish 'E-posta gönderilemedi' message. Reference: /app/backend/server.py:762-779, /app/backend/server.py:153-163.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/auth/register/request-code", "issue": "Same uncaught-email-error risk: if Resend blocks the chosen email, the client sees 500 instead of a graceful error. Not reproduced for a fresh TEST_newuser_* address (Resend accepted it with 202), but swipedia-test-like addresses would 500."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_swipedia_v6_auth_verify.py",
+    "/app/test_reports/pytest/pytest_v6_results.xml"
+  ],
+  "action_items": [
+    "Wrap send_email() call inside send_verification_code() with try/except httpx.HTTPStatusError: delete the just-written verification_codes doc and raise HTTPException(status_code=502, detail='E-posta gönderilemedi, lütfen daha sonra tekrar dene.'). Apply at /app/backend/server.py:190-208 so BOTH request_change_code and register_request_code benefit.",
+    "Optional: make the request-change-code endpoint tolerate 'undeliverable recipient' specifically with a 400 'Bu e-postaya kod gönderilemiyor' instead of 502 so the UI can prompt the user to update their email first."
+  ],
+  "critical_code_review_comments": [
+    "server.py:190-208 send_verification_code writes the DB row BEFORE awaiting send_email — on an email failure the row is orphaned until TTL (10 min). Should delete the row (or write-after-send) when the provider rejects.",
+    "server.py:762-779 request_change_code lets any Emergent 4xx/5xx surface as uncaught -> 500. The flow is otherwise correct (field validation, guest rejection, email-in-use check all precede the send).",
+    "server.py:541-605 register_request_code / register_verify flow is clean: payload (email, phone, name, password_hash) is temporarily stored inside the verification_codes payload, user is only created on successful verify — matches spec. public_user now exposes is_guest / email_verified / phone correctly.",
+    "server.py:812-852 /questions/{id}/answer always returns answered_count via db.answers.count_documents — correct for both branches (already answered + fresh answer).",
+    "server.py:748-758 change_password uses bcrypt.checkpw and returns 403 on mismatch — matches spec."
+  ],
+  "updated_files": ["/app/backend/tests/test_swipedia_v6_auth_verify.py"],
+  "success_rate": {"backend": "93.75% (15/16, 1 skipped due to the HIGH bug above)"},
+  "seed_data_creation": "A fresh TEST_taken_* user is registered for the 409 'email in use' test on each run; a guest user is created for the guest 400 test and the answered_count test. Verification codes created by request-code tests expire via TTL (10 min). Test account password is round-tripped back to secret123 at the end — confirmed by a post-run login returning 200.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "After the main agent adds the try/except around send_email in send_verification_code, re-run only `pytest /app/backend/tests/test_swipedia_v6_auth_verify.py::TestRequestChangeCode::test_request_change_email_ok` — it should PASS (not skip) because the endpoint will now return 200 for a Resend-accepted new email, or a controlled 4xx/5xx (not 500) if Resend blocks the current email. Keep in mind that Resend's deliverability check is non-deterministic for example.com addresses: `swipedia-test@example.com` is currently blocked (422 'Undeliverable recipient'), fresh random TEST_newuser_*@example.com are accepted (202). The test file skips gracefully on 'email send unavailable' so a Resend outage does not red the suite — remove that skip once the backend handles email failures. pytest.ini forces xdist -n2 loadscope; do not pass -p no:xdist.",
+  "rca_of_issue": "RCA for the 500 on POST /api/users/me/request-change-code: (1) server.py:778 calls send_verification_code(current_email=...), (2) that function inserts a verification_codes doc then awaits send_email, (3) send_email POSTs to https://integrations.emergentagent.com/api/v1/email/send and calls resp.raise_for_status(), (4) Resend returns 422 {error:'Undeliverable recipient', code:'undeliverable_recipient'} for swipedia-test@example.com (verified via direct curl), (5) httpx.HTTPStatusError propagates to FastAPI with no handler -> 500 Internal Server Error. Reproduction: `curl -X POST $URL/api/users/me/request-change-code -H 'Authorization: Bearer <test-user-token>' -d '{\"field\":\"email\",\"value\":\"anything@example.com\"}'`. Mitigation: wrap `await send_email(...)` in try/except httpx.HTTPStatusError (and generic Exception) inside send_verification_code; on failure, delete the verification_codes row we just inserted and raise HTTPException(502, 'E-posta gönderilemedi'). Same fix also protects /auth/register/request-code."
+}

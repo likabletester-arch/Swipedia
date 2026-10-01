@@ -1,12 +1,18 @@
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+import hashlib
+import hmac
+import ipaddress
 import json
 import logging
 import os
 import re
 import secrets
 import uuid
+from html import escape
+from html.parser import HTMLParser
+from urllib.parse import urlparse
 
 import bcrypt
 import httpx
@@ -64,6 +70,161 @@ def get_object(path: str) -> tuple:
     return resp.content, resp.headers.get("Content-Type", "application/octet-stream")
 
 
+# --- Email (Emergent yönetimli Resend) + doğrulama kodları ---
+EMAIL_BASE_URL = "https://integrations.emergentagent.com"
+EMAIL_KEY = os.environ.get("EMERGENT_EMAIL_KEY", "")
+EMAIL_FROM_NAME = os.environ.get("EMAIL_FROM_NAME", "Swipedia")
+APP_SECRET = os.environ.get("APP_SECRET", "swipedia-dev-secret").encode()
+CODE_TTL_MINUTES = 10
+
+_SHORTENERS = ("bit.ly", "tinyurl.com", "t.co", "is.gd", "cutt.ly", "goo.gl", "rebrand.ly")
+_CRED_ASK = ("reply with your password", "reply with the code", "send your password", "cvv",
+             "send us your password", "enter your password below", "confirm your card number",
+             "your full card number", "seed phrase", "recovery phrase", "verify your card",
+             "social security number", "confirm your bank details")
+_HOSTISH = re.compile(r"\b(?:https?://)?((?:[a-z0-9-]+\.)+[a-z]{2,})", re.I)
+
+
+def _host_ok(host: str) -> bool:
+    if not host or "xn--" in host:
+        return False
+    try:
+        ipaddress.ip_address(host)
+        return False
+    except ValueError:
+        pass
+    return not any(host == s or host.endswith("." + s) for s in _SHORTENERS)
+
+
+def _same_site(shown: str, real: str) -> bool:
+    return shown == real or real.endswith("." + shown) or shown.endswith("." + real)
+
+
+class _EmailScan(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.tags, self.urls, self.anchors = set(), [], []
+        self._href, self._text = None, []
+
+    def handle_starttag(self, tag, attrs):
+        self.tags.add(tag.lower())
+        self.urls += [v for k, v in attrs if k.lower() in ("href", "src") and v]
+        if tag.lower() == "a":
+            self._href = dict((k.lower(), v) for k, v in attrs).get("href")
+            self._text = []
+
+    def handle_data(self, data):
+        if self._href is not None:
+            self._text.append(data)
+
+    def handle_endtag(self, tag):
+        if tag.lower() == "a" and self._href is not None:
+            self.anchors.append((self._href, "".join(self._text)))
+            self._href, self._text = None, []
+
+
+def _assert_safe_email(subject: str, html: str) -> None:
+    scan = _EmailScan()
+    scan.feed(html)
+    if scan.tags & {"form", "input", "textarea", "select"}:
+        raise ValueError("No forms or input fields in email (G2)")
+    body = f"{subject}\n{html}".lower()
+    for p in _CRED_ASK:
+        if p in body:
+            raise ValueError(f"Email asks the recipient for credentials: {p!r} (G2)")
+    for url in scan.urls:
+        low = url.strip().lower()
+        if low.startswith(("mailto:", "tel:", "cid:", "#")):
+            continue
+        if not low.startswith("https://"):
+            raise ValueError(f"Email links/assets must be absolute https: {url!r} (G3)")
+        host = urlparse(low).hostname or ""
+        if not _host_ok(host) or urlparse(low).username is not None:
+            raise ValueError(f"Shortened, numeric-host or credential-bearing URL: {url!r} (G3)")
+    for href, text in scan.anchors:
+        real = urlparse(href.strip().lower()).hostname or ""
+        if not real:
+            continue
+        for m in _HOSTISH.finditer(text):
+            if not _same_site(m.group(1).lower(), real):
+                raise ValueError(f"Anchor text {m.group(1)!r} != real link host {real!r} (G3)")
+
+
+async def send_email(to: str, subject: str, html: str) -> Optional[str]:
+    _assert_safe_email(subject, html)
+    payload = {"to": [to], "subject": subject, "html": html, "from_name": EMAIL_FROM_NAME}
+    async with httpx.AsyncClient(timeout=30) as http_client:
+        resp = await http_client.post(
+            f"{EMAIL_BASE_URL}/api/v1/email/send",
+            headers={"X-Email-Key": EMAIL_KEY},
+            json=payload,
+        )
+    resp.raise_for_status()
+    return resp.json().get("id")
+
+
+def _code() -> str:
+    return f"{secrets.randbelow(1_000_000):06d}"
+
+
+def _hash_code(code: str) -> str:
+    return hmac.new(APP_SECRET, code.encode(), hashlib.sha256).hexdigest()
+
+
+def _verification_html(code: str, intro: str) -> str:
+    return (
+        '<table role="presentation" width="100%" style="background:#f4f1ec"><tr><td align="center" style="padding:24px">'
+        '<table role="presentation" width="100%" style="max-width:440px;background:#ffffff;border-radius:16px;'
+        'font-family:Arial,Helvetica,sans-serif"><tr><td style="padding:28px">'
+        '<p style="font-size:13px;font-weight:bold;letter-spacing:1px;color:#FF6B4A;margin:0 0 6px">SWIPEDIA</p>'
+        f'<p style="font-size:15px;color:#1f1c18;margin:0 0 14px">{escape(intro)}</p>'
+        f'<p style="font-size:34px;font-weight:bold;letter-spacing:8px;color:#1f1c18;margin:0 0 14px">{escape(code)}</p>'
+        '<p style="font-size:13px;color:#555;margin:0 0 6px">Bu kod 10 dakika içinde gecerliligini yitirecek. '
+        'Kodu kimseyle paylasma.</p>'
+        '<p style="font-size:11px;color:#999;margin:14px 0 0">Bu e-posta Swipedia tarafindan gonderildi. '
+        'Sifreni ya da kodunu asla e-posta ile geri istemeyiz.</p>'
+        '</td></tr></table></td></tr></table>'
+    )
+
+
+async def send_verification_code(to: str, purpose: str, payload: Optional[Dict[str, Any]] = None, key: Optional[str] = None) -> None:
+    code = _code()
+    ckey = key or to.lower()
+    await db.verification_codes.delete_many({"ckey": ckey, "purpose": purpose})
+    result = await db.verification_codes.insert_one({
+        "ckey": ckey,
+        "purpose": purpose,
+        "code_hash": _hash_code(code),
+        "payload": payload or {},
+        "attempts": 0,
+        "expires_at": now_utc() + timedelta(minutes=CODE_TTL_MINUTES),
+    })
+    intros = {
+        "register": "Swipedia hesabini olusturmak icin dogrulama kodun:",
+        "change_email": "E-posta adresini degistirmek icin dogrulama kodun:",
+        "change_phone": "Telefon numarani degistirmek icin dogrulama kodun:",
+    }
+    subject = "Swipedia dogrulama kodun"
+    try:
+        await send_email(to, subject, _verification_html(code, intros.get(purpose, "Swipedia dogrulama kodun:")))
+    except Exception as exc:
+        await db.verification_codes.delete_one({"_id": result.inserted_id})
+        logger.warning("Verification email failed for %s: %s", to, exc)
+        raise HTTPException(status_code=502, detail="Doğrulama e-postası gönderilemedi. Lütfen e-posta adresini kontrol et.")
+
+
+async def verify_code(ckey: str, purpose: str, code: str) -> Dict[str, Any]:
+    doc = await db.verification_codes.find_one({"ckey": ckey, "purpose": purpose})
+    expired = doc and doc["expires_at"].replace(tzinfo=timezone.utc) < now_utc()
+    if not doc or expired or doc.get("attempts", 0) >= 5:
+        raise HTTPException(status_code=400, detail="Kod geçersiz veya süresi dolmuş. Lütfen yeniden kod iste.")
+    if not hmac.compare_digest(doc["code_hash"], _hash_code(code)):
+        await db.verification_codes.update_one({"_id": doc["_id"]}, {"$inc": {"attempts": 1}})
+        raise HTTPException(status_code=400, detail="Doğrulama kodu hatalı")
+    await db.verification_codes.delete_one({"_id": doc["_id"]})
+    return doc.get("payload", {})
+
+
 # --- Points ---
 # Rütbe yükseldikçe 1 puan için gereken doğru cevap sayısı artar.
 DIFFICULTIES = {"kolay", "orta", "zor", "uzman"}
@@ -107,6 +268,9 @@ def public_user(user: Dict[str, Any]) -> Dict[str, Any]:
         "username": user.get("username", ""),
         "verified": bool(user.get("verified", False)),
         "email": user.get("email", ""),
+        "phone": user.get("phone", ""),
+        "is_guest": user.get("provider") == "guest",
+        "email_verified": bool(user.get("email_verified", False)),
         "avatar": user.get("avatar", ""),
         "bio": user.get("bio", "Curious about everything."),
         "points": int(float(user.get("points", 0))),
@@ -176,6 +340,34 @@ class GuestRequest(BaseModel):
 class ProfileUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=2, max_length=40)
     username: Optional[str] = Field(default=None, min_length=3, max_length=20)
+    avatar: Optional[str] = Field(default=None, max_length=300)
+
+
+class RegisterRequest(BaseModel):
+    email: EmailStr
+    phone: str = Field(min_length=7, max_length=20)
+    password: str = Field(min_length=6, max_length=120)
+    name: Optional[str] = Field(default=None, max_length=40)
+
+
+class RegisterVerify(BaseModel):
+    email: EmailStr
+    code: str = Field(pattern=r"^\d{6}$")
+
+
+class ChangePassword(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=6, max_length=120)
+
+
+class ContactChangeRequest(BaseModel):
+    field: str
+    value: str = Field(min_length=3, max_length=120)
+
+
+class ContactChangeVerify(BaseModel):
+    field: str
+    code: str = Field(pattern=r"^\d{6}$")
 
 
 class AnswerRequest(BaseModel):
@@ -331,6 +523,8 @@ async def seed_database() -> None:
     await db.uploads.create_index("path", unique=True)
     await db.notifications.create_index([("user_id", 1), ("created_at", -1)])
     await db.notifications.create_index("notification_id", unique=True)
+    await db.verification_codes.create_index("expires_at", expireAfterSeconds=0)
+    await db.verification_codes.create_index([("ckey", 1), ("purpose", 1)])
 
 
 @app.on_event("startup")
@@ -361,6 +555,49 @@ async def register(credentials: Credentials) -> Dict[str, Any]:
         "username": await unique_username(email.split("@")[0]),
         "password_hash": bcrypt.hashpw(credentials.password.encode(), bcrypt.gensalt()).decode(),
         "provider": "password",
+        "avatar": "",
+        "points": 0.0,
+        "correct_count": 0,
+        "saved_count": 0,
+        "bio": "Meraklı bir Swipedia öğrencisi.",
+        "created_at": now_utc(),
+    }
+    await db.users.insert_one(user.copy())
+    await create_notification(user["user_id"], "system", "Swipedia'ya hoş geldin!", "Soruları kaydırarak keşfet, doğru cevapla ve rütbe atla.", "rocket-outline")
+    return {"session_token": await create_session(user["user_id"]), "user": public_user(user)}
+
+
+@api_router.post("/auth/register/request-code")
+async def register_request_code(payload: RegisterRequest) -> Dict[str, Any]:
+    email = str(payload.email).lower()
+    if await db.users.find_one({"email": email}, {"_id": 0}):
+        raise HTTPException(status_code=409, detail="Bu e-posta zaten kayıtlı")
+    phone = re.sub(r"\s+", "", payload.phone)
+    data = {
+        "email": email,
+        "phone": phone,
+        "name": payload.name or email.split("@")[0].title(),
+        "password_hash": bcrypt.hashpw(payload.password.encode(), bcrypt.gensalt()).decode(),
+    }
+    await send_verification_code(email, "register", payload=data)
+    return {"ok": True}
+
+
+@api_router.post("/auth/register/verify")
+async def register_verify(payload: RegisterVerify) -> Dict[str, Any]:
+    email = str(payload.email).lower()
+    data = await verify_code(email, "register", payload.code)
+    if await db.users.find_one({"email": email}, {"_id": 0}):
+        raise HTTPException(status_code=409, detail="Bu e-posta zaten kayıtlı")
+    user = {
+        "user_id": f"user_{uuid.uuid4().hex[:12]}",
+        "email": data.get("email", email),
+        "phone": data.get("phone", ""),
+        "name": data.get("name") or email.split("@")[0].title(),
+        "username": await unique_username(email.split("@")[0]),
+        "password_hash": data.get("password_hash", ""),
+        "provider": "password",
+        "email_verified": True,
         "avatar": "",
         "points": 0.0,
         "correct_count": 0,
@@ -488,6 +725,8 @@ async def update_profile(payload: ProfileUpdate, user: Dict[str, Any] = Depends(
     updates: Dict[str, Any] = {}
     if payload.name:
         updates["name"] = payload.name.strip()
+    if payload.avatar is not None:
+        updates["avatar"] = payload.avatar.strip()
     if payload.username:
         uname = slugify_username(payload.username)
         if len(uname) < 3:
@@ -504,7 +743,61 @@ async def update_profile(payload: ProfileUpdate, user: Dict[str, Any] = Depends(
             question_updates["author_name"] = updates["name"]
         if "username" in updates:
             question_updates["author_username"] = updates["username"]
-        await db.questions.update_many({"author_id": user["user_id"]}, {"$set": question_updates})
+        if "avatar" in updates:
+            question_updates["author_avatar"] = updates["avatar"]
+        if question_updates:
+            await db.questions.update_many({"author_id": user["user_id"]}, {"$set": question_updates})
+    return {"user": public_user(user)}
+
+
+@api_router.post("/users/me/password")
+async def change_password(payload: ChangePassword, user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, bool]:
+    if not user.get("password_hash"):
+        raise HTTPException(status_code=400, detail="Bu hesap şifre ile giriş yapmıyor")
+    if not bcrypt.checkpw(payload.current_password.encode(), user["password_hash"].encode()):
+        raise HTTPException(status_code=403, detail="Mevcut şifre hatalı")
+    await db.users.update_one(
+        {"user_id": user["user_id"]},
+        {"$set": {"password_hash": bcrypt.hashpw(payload.new_password.encode(), bcrypt.gensalt()).decode()}},
+    )
+    return {"ok": True}
+
+
+@api_router.post("/users/me/request-change-code")
+async def request_change_code(payload: ContactChangeRequest, user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, bool]:
+    if payload.field not in ("email", "phone"):
+        raise HTTPException(status_code=422, detail="Geçersiz alan")
+    current_email = user.get("email", "")
+    if not current_email or current_email.endswith("@guest.swipedia.app"):
+        raise HTTPException(status_code=400, detail="Doğrulama için geçerli bir e-postan olmalı")
+    if payload.field == "email":
+        value = payload.value.lower().strip()
+        if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", value):
+            raise HTTPException(status_code=422, detail="Geçerli bir e-posta gir")
+        if await db.users.find_one({"email": value, "user_id": {"$ne": user["user_id"]}}, {"_id": 0}):
+            raise HTTPException(status_code=409, detail="Bu e-posta kullanımda")
+    else:
+        value = re.sub(r"\s+", "", payload.value)
+        if len(value) < 7:
+            raise HTTPException(status_code=422, detail="Geçerli bir telefon numarası gir")
+    await send_verification_code(current_email, f"change_{payload.field}", payload={"field": payload.field, "value": value}, key=user["user_id"])
+    return {"ok": True}
+
+
+@api_router.post("/users/me/confirm-change")
+async def confirm_change(payload: ContactChangeVerify, user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, Any]:
+    if payload.field not in ("email", "phone"):
+        raise HTTPException(status_code=422, detail="Geçersiz alan")
+    data = await verify_code(user["user_id"], f"change_{payload.field}", payload.code)
+    field = data.get("field", payload.field)
+    value = data.get("value", "")
+    if not value:
+        raise HTTPException(status_code=400, detail="Doğrulama verisi bulunamadı")
+    update: Dict[str, Any] = {field: value}
+    if field == "email":
+        update["email_verified"] = True
+    await db.users.update_one({"user_id": user["user_id"]}, {"$set": update})
+    user.update(update)
     return {"user": public_user(user)}
 
 
@@ -528,7 +821,8 @@ async def answer(question_id: str, payload: AnswerRequest, user: Dict[str, Any] 
         raise HTTPException(status_code=404, detail="Soru bulunamadı")
     answer_key = f"{user['user_id']}:{question_id}"
     if await db.answers.find_one({"answer_key": answer_key}, {"_id": 0}):
-        return {"correct": payload.option_index == question["correct_index"], "already_answered": True, "earned": 0, "user": public_user(user)}
+        answered_count = await db.answers.count_documents({"user_id": user["user_id"]})
+        return {"correct": payload.option_index == question["correct_index"], "already_answered": True, "earned": 0, "answered_count": answered_count, "user": public_user(user)}
     correct = payload.option_index == question["correct_index"]
     await db.answers.insert_one({"answer_key": answer_key, "user_id": user["user_id"], "question_id": question_id, "correct": correct, "created_at": now_utc()})
     earned = 0
@@ -558,6 +852,7 @@ async def answer(question_id: str, payload: AnswerRequest, user: Dict[str, Any] 
         "earned": earned,
         "point_progress": progress,
         "point_rate": rate,
+        "answered_count": await db.answers.count_documents({"user_id": user["user_id"]}),
         "user": public_user(user),
     }
 

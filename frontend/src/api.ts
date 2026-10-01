@@ -11,6 +11,9 @@ export type User = {
   name: string;
   username: string;
   email: string;
+  phone?: string;
+  is_guest?: boolean;
+  email_verified?: boolean;
   verified?: boolean;
   avatar?: string;
   bio?: string;
@@ -102,6 +105,24 @@ export async function register(name: string, email: string, password: string) {
   return result.user;
 }
 
+export const requestRegisterCode = (name: string, email: string, phone: string, password: string) =>
+  api<{ ok: boolean }>("/auth/register/request-code", { method: "POST", body: JSON.stringify({ name, email, phone, password }) });
+
+export async function verifyRegister(email: string, code: string) {
+  const result = await api<{ session_token: string; user: User }>("/auth/register/verify", { method: "POST", body: JSON.stringify({ email, code }) });
+  await setToken(result.session_token);
+  return result.user;
+}
+
+export const changePassword = (currentPassword: string, newPassword: string) =>
+  api<{ ok: boolean }>("/users/me/password", { method: "POST", body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }) }, true);
+
+export const requestContactChangeCode = (field: "email" | "phone", value: string) =>
+  api<{ ok: boolean }>("/users/me/request-change-code", { method: "POST", body: JSON.stringify({ field, value }) }, true);
+
+export const confirmContactChange = (field: "email" | "phone", code: string) =>
+  api<{ user: User }>("/users/me/confirm-change", { method: "POST", body: JSON.stringify({ field, code }) }, true).then((r) => r.user);
+
 export async function guest(name = "Guest Learner") {
   const result = await api<{ session_token: string; user: User }>("/auth/guest", { method: "POST", body: JSON.stringify({ name }) });
   await setToken(result.session_token);
@@ -114,7 +135,7 @@ export async function appleAuth(identityToken: string, name?: string, email?: st
   return result.user;
 }
 
-export async function updateProfile(payload: { name?: string; username?: string }) {
+export async function updateProfile(payload: { name?: string; username?: string; avatar?: string }) {
   const result = await api<{ user: User }>("/users/me", { method: "PATCH", body: JSON.stringify(payload) }, true);
   return result.user;
 }
@@ -134,7 +155,7 @@ export const fetchFeed = () => api<Question[]>("/feed");
 export const fetchComments = (questionId: string) => api<Comment[]>(`/questions/${questionId}/comments`);
 export const addComment = (questionId: string, text: string) => api<Comment>(`/questions/${questionId}/comments`, { method: "POST", body: JSON.stringify({ text }) }, true);
 export const answerQuestion = (questionId: string, optionIndex: number) =>
-  api<{ correct: boolean; already_answered: boolean; correct_index?: number; explanation?: string; earned: number; point_progress: number; point_rate: number; user: User }>(
+  api<{ correct: boolean; already_answered: boolean; correct_index?: number; explanation?: string; earned: number; point_progress: number; point_rate: number; answered_count?: number; user: User }>(
     `/questions/${questionId}/answer`,
     { method: "POST", body: JSON.stringify({ option_index: optionIndex }) },
     true,

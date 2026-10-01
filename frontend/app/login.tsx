@@ -16,7 +16,7 @@ import {
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 
-import { api, appleAuth, guest, login, register, setToken, type User } from "@/src/api";
+import { api, appleAuth, guest, login, requestRegisterCode, setToken, verifyRegister, type User } from "@/src/api";
 import { useAuth } from "@/src/auth";
 import { useI18n } from "@/src/i18n";
 import { makeStyles, useTheme } from "@/src/theme";
@@ -34,7 +34,10 @@ export default function LoginScreen() {
   const [mode, setMode] = useState<AuthMode>("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [step, setStep] = useState<"form" | "code">("form");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [appleReady, setAppleReady] = useState(false);
@@ -77,6 +80,26 @@ export default function LoginScreen() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const sendRegisterCode = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      await requestRegisterCode(name.trim(), email.trim(), phone.trim(), password);
+      setStep("code");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("auth.error"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const switchMode = (next: AuthMode) => {
+    setMode(next);
+    setStep("form");
+    setCode("");
+    setError("");
   };
 
   const googleLogin = async () => {
@@ -143,34 +166,68 @@ export default function LoginScreen() {
         </View>
         <View style={styles.authCard}>
           <View style={styles.modeRow}>
-            <Pressable testID="auth-mode-login" onPress={() => setMode("login")} style={[styles.modeButton, mode === "login" && styles.modeButtonActive]}><Text style={[styles.modeText, mode === "login" && styles.modeTextActive]}>{t("auth.login")}</Text></Pressable>
-            <Pressable testID="auth-mode-register" onPress={() => setMode("register")} style={[styles.modeButton, mode === "register" && styles.modeButtonActive]}><Text style={[styles.modeText, mode === "register" && styles.modeTextActive]}>{t("auth.register")}</Text></Pressable>
+            <Pressable testID="auth-mode-login" onPress={() => switchMode("login")} style={[styles.modeButton, mode === "login" && styles.modeButtonActive]}><Text style={[styles.modeText, mode === "login" && styles.modeTextActive]}>{t("auth.login")}</Text></Pressable>
+            <Pressable testID="auth-mode-register" onPress={() => switchMode("register")} style={[styles.modeButton, mode === "register" && styles.modeButtonActive]}><Text style={[styles.modeText, mode === "register" && styles.modeTextActive]}>{t("auth.register")}</Text></Pressable>
           </View>
-          {mode === "register" && <TextInput testID="name-input" value={name} onChangeText={setName} placeholder={t("auth.name")} placeholderTextColor={colors.muted} style={styles.input} />}
-          <TextInput testID="email-input" value={email} onChangeText={setEmail} placeholder={t("auth.email")} placeholderTextColor={colors.muted} autoCapitalize="none" keyboardType="email-address" style={styles.input} />
-          <TextInput testID="password-input" value={password} onChangeText={setPassword} placeholder={t("auth.password")} placeholderTextColor={colors.muted} secureTextEntry style={styles.input} />
-          {!!error && <Text testID="auth-error-text" style={{ color: colors.error, fontSize: 10, marginBottom: 8 }}>{error}</Text>}
-          <Pressable testID="auth-submit-button" disabled={busy} onPress={() => run(() => (mode === "login" ? login(email, password) : register(name, email, password)))} style={({ pressed }) => [styles.primaryButton, pressed && { opacity: 0.78 }, busy && { opacity: 0.6 }]}>
-            {busy ? <ActivityIndicator color={colors.onBrandPrimary} /> : <Text style={styles.primaryButtonText}>{mode === "login" ? t("auth.submitLogin") : t("auth.submitRegister")}</Text>}
-          </Pressable>
-          <Pressable testID="google-login-button" onPress={googleLogin} disabled={busy} style={({ pressed }) => [styles.googleButton, pressed && { opacity: 0.7 }]}>
-            <Ionicons name="logo-google" size={16} color={colors.error} />
-            <Text style={styles.googleText}>{t("auth.google")}</Text>
-          </Pressable>
-          {appleReady && (
-            <View testID="apple-login-button">
-              <AppleAuthentication.AppleAuthenticationButton
-                buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-                cornerRadius={15}
-                style={{ height: 48, marginTop: 9 }}
-                onPress={appleLogin}
-              />
-            </View>
+
+          {mode === "register" && step === "code" ? (
+            <>
+              <Text style={styles.verifyTitle}>{t("auth.verifyTitle")}</Text>
+              <Text style={styles.verifySub}>{t("auth.verifySubtitle", { email: email.trim() })}</Text>
+              <TextInput testID="code-input" value={code} onChangeText={setCode} placeholder={t("auth.code")} placeholderTextColor={colors.muted} keyboardType="number-pad" maxLength={6} style={[styles.input, { textAlign: "center", letterSpacing: 8, fontSize: 18 }]} />
+              {!!error && <Text testID="auth-error-text" style={{ color: colors.error, fontSize: 10, marginBottom: 8 }}>{error}</Text>}
+              <Pressable testID="verify-submit-button" disabled={busy} onPress={() => run(() => verifyRegister(email.trim(), code.trim()))} style={({ pressed }) => [styles.primaryButton, pressed && { opacity: 0.78 }, busy && { opacity: 0.6 }]}>
+                {busy ? <ActivityIndicator color={colors.onBrandPrimary} /> : <Text style={styles.primaryButtonText}>{t("auth.verifyButton")}</Text>}
+              </Pressable>
+              <Pressable testID="resend-code-button" onPress={sendRegisterCode} disabled={busy} style={styles.guestButton}>
+                <Text style={styles.guestText}>{t("auth.resend")}</Text>
+              </Pressable>
+            </>
+          ) : mode === "register" ? (
+            <>
+              <TextInput testID="name-input" value={name} onChangeText={setName} placeholder={t("auth.name")} placeholderTextColor={colors.muted} style={styles.input} />
+              <TextInput testID="email-input" value={email} onChangeText={setEmail} placeholder={t("auth.email")} placeholderTextColor={colors.muted} autoCapitalize="none" keyboardType="email-address" style={styles.input} />
+              <TextInput testID="phone-input" value={phone} onChangeText={setPhone} placeholder={t("auth.phone")} placeholderTextColor={colors.muted} keyboardType="phone-pad" style={styles.input} />
+              <TextInput testID="password-input" value={password} onChangeText={setPassword} placeholder={t("auth.password")} placeholderTextColor={colors.muted} secureTextEntry style={styles.input} />
+              <Text style={styles.phoneHint}>{t("auth.phoneHint")}</Text>
+              {!!error && <Text testID="auth-error-text" style={{ color: colors.error, fontSize: 10, marginBottom: 8 }}>{error}</Text>}
+              <Pressable testID="auth-submit-button" disabled={busy} onPress={sendRegisterCode} style={({ pressed }) => [styles.primaryButton, pressed && { opacity: 0.78 }, busy && { opacity: 0.6 }]}>
+                {busy ? <ActivityIndicator color={colors.onBrandPrimary} /> : <Text style={styles.primaryButtonText}>{t("auth.sendCode")}</Text>}
+              </Pressable>
+            </>
+          ) : (
+            <>
+              <TextInput testID="email-input" value={email} onChangeText={setEmail} placeholder={t("auth.email")} placeholderTextColor={colors.muted} autoCapitalize="none" keyboardType="email-address" style={styles.input} />
+              <TextInput testID="password-input" value={password} onChangeText={setPassword} placeholder={t("auth.password")} placeholderTextColor={colors.muted} secureTextEntry style={styles.input} />
+              {!!error && <Text testID="auth-error-text" style={{ color: colors.error, fontSize: 10, marginBottom: 8 }}>{error}</Text>}
+              <Pressable testID="auth-submit-button" disabled={busy} onPress={() => run(() => login(email, password))} style={({ pressed }) => [styles.primaryButton, pressed && { opacity: 0.78 }, busy && { opacity: 0.6 }]}>
+                {busy ? <ActivityIndicator color={colors.onBrandPrimary} /> : <Text style={styles.primaryButtonText}>{t("auth.submitLogin")}</Text>}
+              </Pressable>
+            </>
           )}
-          <Pressable testID="guest-login-button" onPress={() => run(() => guest())} style={styles.guestButton}>
-            <Text style={styles.guestText}>{t("auth.guest")}</Text>
-          </Pressable>
+
+          {step === "form" && (
+            <>
+              <Pressable testID="google-login-button" onPress={googleLogin} disabled={busy} style={({ pressed }) => [styles.googleButton, pressed && { opacity: 0.7 }]}>
+                <Ionicons name="logo-google" size={16} color={colors.error} />
+                <Text style={styles.googleText}>{t("auth.google")}</Text>
+              </Pressable>
+              {appleReady && (
+                <View testID="apple-login-button">
+                  <AppleAuthentication.AppleAuthenticationButton
+                    buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                    buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                    cornerRadius={15}
+                    style={{ height: 48, marginTop: 9 }}
+                    onPress={appleLogin}
+                  />
+                </View>
+              )}
+              <Pressable testID="guest-login-button" onPress={() => run(() => guest())} style={styles.guestButton}>
+                <Text style={styles.guestText}>{t("auth.guest")}</Text>
+              </Pressable>
+            </>
+          )}
         </View>
         <Text style={styles.legal}>{t("auth.legal")}</Text>
       </ScrollView>
@@ -195,6 +252,9 @@ const useStyles = makeStyles((colors) => StyleSheet.create({
   modeText: { color: colors.muted, fontWeight: "700", fontSize: 11 },
   modeTextActive: { color: colors.onSurface },
   input: { minHeight: 48, borderRadius: 13, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 13, color: colors.onSurface, fontSize: 12, marginBottom: 9 },
+  phoneHint: { color: colors.muted, fontSize: 9, lineHeight: 13, marginBottom: 10, marginTop: -2 },
+  verifyTitle: { color: colors.onSurface, fontSize: 15, fontWeight: "900", marginBottom: 5 },
+  verifySub: { color: colors.muted, fontSize: 11, lineHeight: 16, marginBottom: 12 },
   primaryButton: { minHeight: 48, borderRadius: 15, backgroundColor: colors.brandPrimary, alignItems: "center", justifyContent: "center", paddingHorizontal: 16 },
   primaryButtonText: { color: colors.onBrandPrimary, fontSize: 12, fontWeight: "800" },
   googleButton: { minHeight: 48, borderRadius: 15, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderStrong, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, marginTop: 9 },

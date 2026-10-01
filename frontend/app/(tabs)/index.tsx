@@ -52,7 +52,7 @@ export default function FeedScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { t, lang } = useI18n();
-  const { user, setUser } = useAuth();
+  const { user, setUser, logout } = useAuth();
   const toast = useToast();
   const bottomChrome = usesNativeTabs ? insets.bottom : 0;
 
@@ -62,6 +62,8 @@ export default function FeedScreen() {
   const [error, setError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [answered, setAnswered] = useState<Record<string, AnswerResult>>({});
+  const [answeredCount, setAnsweredCount] = useState(0);
+  const [gateOpen, setGateOpen] = useState(false);
   const [active, setActive] = useState<Question | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState("");
@@ -110,11 +112,16 @@ export default function FeedScreen() {
 
   const answer = async (question: Question, index: number) => {
     if (answered[question.question_id]) return;
+    if (user?.is_guest && answeredCount >= 5) { setGateOpen(true); return; }
     try {
       const result = await answerQuestion(question.question_id, index);
       await Haptics.notificationAsync(result.correct ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning);
       setAnswered((old) => ({ ...old, [question.question_id]: { index, correct: result.correct, correctIndex: result.correct_index, explanation: result.explanation } }));
       setUser(result.user);
+      if (typeof result.answered_count === "number") {
+        setAnsweredCount(result.answered_count);
+        if (user?.is_guest && result.answered_count >= 5) setTimeout(() => setGateOpen(true), 900);
+      }
       if (result.correct) {
         const sub = t("feed.popupProgress", { done: result.point_progress, rate: result.point_rate, total: formatPoints(result.user.points) });
         showPointsPopup(result.earned > 0 ? `+${result.earned} ${t("common.points")}` : t("common.correct"), sub);
@@ -122,6 +129,12 @@ export default function FeedScreen() {
     } catch (err) {
       toast.show(err instanceof Error ? err.message : t("feed.answerFailed"));
     }
+  };
+
+  const goRegister = async () => {
+    setGateOpen(false);
+    await logout();
+    router.replace("/login");
   };
 
   const save = async (question: Question) => {
@@ -338,6 +351,24 @@ export default function FeedScreen() {
               </ScrollView>
             </View>
           </KeyboardAvoidingView>
+        </View>
+      </Modal>
+
+      <Modal visible={gateOpen} transparent animationType="fade" onRequestClose={() => setGateOpen(false)}>
+        <View style={styles.gateBackdrop}>
+          <View style={styles.gateCard} testID="guest-gate">
+            <View style={styles.gateIcon}>
+              <Ionicons name="rocket" size={26} color={colors.onBrandPrimary} />
+            </View>
+            <Text style={styles.gateTitle}>{t("guest.gateTitle")}</Text>
+            <Text style={styles.gateText}>{t("guest.gateText")}</Text>
+            <Pressable testID="guest-gate-register" onPress={goRegister} style={({ pressed }) => [styles.gateButton, pressed && { opacity: 0.8 }]}>
+              <Text style={styles.gateButtonText}>{t("guest.register")}</Text>
+            </Pressable>
+            <Pressable testID="guest-gate-later" onPress={() => setGateOpen(false)} style={styles.gateLater}>
+              <Text style={styles.gateLaterText}>{t("guest.later")}</Text>
+            </Pressable>
+          </View>
         </View>
       </Modal>
 
@@ -594,4 +625,13 @@ const useStyles = makeStyles((colors) => StyleSheet.create({
   avatarText: { color: colors.onBrandTertiary, fontSize: 13, fontWeight: "900" },
   personName: { color: colors.onSurfaceSecondary, fontSize: 12, fontWeight: "800" },
   personMeta: { color: colors.muted, fontSize: 10, marginTop: 2 },
+  gateBackdrop: { flex: 1, backgroundColor: "rgba(18,14,11,0.72)", justifyContent: "center", alignItems: "center", padding: 28 },
+  gateCard: { width: "100%", backgroundColor: colors.surface, borderRadius: 24, padding: 22, alignItems: "center" },
+  gateIcon: { width: 56, height: 56, borderRadius: 20, backgroundColor: colors.brandPrimary, alignItems: "center", justifyContent: "center", marginBottom: 14 },
+  gateTitle: { color: colors.onSurface, fontSize: 17, fontWeight: "900", textAlign: "center", marginBottom: 8 },
+  gateText: { color: colors.muted, fontSize: 12, lineHeight: 18, textAlign: "center", marginBottom: 18 },
+  gateButton: { alignSelf: "stretch", minHeight: 50, borderRadius: 16, backgroundColor: colors.brandPrimary, alignItems: "center", justifyContent: "center" },
+  gateButtonText: { color: colors.onBrandPrimary, fontSize: 13, fontWeight: "900" },
+  gateLater: { minHeight: 44, alignItems: "center", justifyContent: "center", marginTop: 4 },
+  gateLaterText: { color: colors.muted, fontSize: 11, fontWeight: "700" },
 }));
