@@ -103,6 +103,13 @@
 #====================================================================================================
 ## Session: Faz 2 — stok avatar + bio + takip + beğeni (Ekim 2026)
 backend:
+  - task: "Android APK kimlik doğrulama üretim yönlendirmesi"
+    file: "/app/frontend/.env, /app/frontend/src/api.ts, /app/backend/server.py"
+    implemented: false
+    needs_retesting: true
+    status_history:
+      - working: false
+        comment: "Kullanıcı gerçek Android APK'da kayıt ve misafir girişinin çalışmadığını bildirdi. Kaynak build ayarı EXPO_PUBLIC_BACKEND_URL=https://micro-genius-3.preview.emergentagent.com kullanıyor; üretim backend alan adı/release build yapılandırması tanımlı değil. Genel ağdan mevcut preview /api/auth/guest ve /api/auth/register/request-code 200 döndü; yerel Mongo ping başarılı."
   - task: "Soru beğeni (like) toggle + feed liked flag"
     file: "/app/backend/server.py"
     implemented: true

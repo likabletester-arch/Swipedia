@@ -36,6 +36,7 @@ TikTok/Reels tarzı dikey kaydırmalı bir öğrenme uygulaması: kullanıcılar
 - Başka kullanıcıların profili: Akışta sorunun sol altındaki yazar bloğuna dokununca `app/user/[id].tsx` açılır; sadece o kişinin paylaştığı sorular grid olarak gösterilir. "Kaydedilenler" sekmesi yalnızca kullanıcının kendi profilinde (`(tabs)/profile.tsx`). Backend: `GET /api/users/{user_id}/profile` (herkese açık, kullanıcı + paylaştığı sorular).
 
 ## Prioritized Backlog
+- **P0**: Android production APK: gerçek production backend URL'sini build ortamına `EXPO_PUBLIC_BACKEND_URL` olarak tanımla, Atlas üretim bağlantısını doğrula ve APK'yı bu URL ile yeniden oluştur.
 - **P0**: Rütbe sistemi UI'ı (kullanıcı rütbe isimlerini/eşiklerini verecek — bekleniyor)
 - **P1**: Kaydedilen soruların profilde listelenmesi ("Kayıtlı" sekmesi)
 - **P1**: Profilde "Sorularım" sekmesi (kullanıcının oluşturduğu sorular)
