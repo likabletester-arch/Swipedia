@@ -32,6 +32,9 @@ TikTok/Reels tarzı dikey kaydırmalı bir öğrenme uygulaması: kullanıcılar
 - TikiLearn → Swipedia isim temizliği (kod + DB kayıtları)
 - Alert'ler kaldırıldı, toast bildirimleri eklendi; react-native-keyboard-controller ile klavye deneyimi
 
+## Implemented (2026-10-02) — Faz 2
+- Başka kullanıcıların profili: Akışta sorunun sol altındaki yazar bloğuna dokununca `app/user/[id].tsx` açılır; sadece o kişinin paylaştığı sorular grid olarak gösterilir. "Kaydedilenler" sekmesi yalnızca kullanıcının kendi profilinde (`(tabs)/profile.tsx`). Backend: `GET /api/users/{user_id}/profile` (herkese açık, kullanıcı + paylaştığı sorular).
+
 ## Prioritized Backlog
 - **P0**: Rütbe sistemi UI'ı (kullanıcı rütbe isimlerini/eşiklerini verecek — bekleniyor)
 - **P1**: Kaydedilen soruların profilde listelenmesi ("Kayıtlı" sekmesi)

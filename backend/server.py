@@ -1057,6 +1057,16 @@ async def my_questions_list(user: Dict[str, Any] = Depends(get_current_user)) ->
     return [question_public(q, q["question_id"] in saved_ids) for q in rows]
 
 
+@api_router.get("/users/{user_id}/profile")
+async def user_public_profile(user_id: str) -> Dict[str, Any]:
+    """Başka bir kullanıcının herkese açık profili + paylaştığı sorular."""
+    target = await db.users.find_one({"user_id": user_id}, {"_id": 0})
+    if not target:
+        raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
+    rows = await db.questions.find({"author_id": user_id}, {"_id": 0}).sort("created_at", -1).to_list(300)
+    return {"user": public_user(target), "questions": [question_public(q, False) for q in rows]}
+
+
 # ---------- Messaging ----------
 
 @api_router.get("/conversations")

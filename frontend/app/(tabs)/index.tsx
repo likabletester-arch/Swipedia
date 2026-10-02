@@ -504,6 +504,7 @@ function QuizCard({
   const styles = useStyles();
   const { colors } = useTheme();
   const { t } = useI18n();
+  const router = useRouter();
 
   return (
     <View style={{ height }} testID={`quiz-card-${question.question_id}`}>
@@ -528,7 +529,11 @@ function QuizCard({
         {result && <FeedbackBox result={result} explanation={question.explanation} />}
       </View>
 
-      <View style={[styles.authorBlock, { bottom: bottomChrome + 14 }]} pointerEvents="none">
+      <Pressable
+        testID={`author-block-${question.question_id}`}
+        onPress={() => router.push(`/user/${question.author_id}`)}
+        style={({ pressed }) => [styles.authorBlock, { bottom: bottomChrome + 14 }, pressed && { opacity: 0.7 }]}
+      >
         <UserAvatar avatar={question.author_avatar} name={question.author_name} size={36} radius={13} />
         <View style={{ justifyContent: "center" }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
@@ -537,7 +542,7 @@ function QuizCard({
           </View>
           {!!question.author_username && <Text style={styles.authorUsername}>@{question.author_username}</Text>}
         </View>
-      </View>
+      </Pressable>
 
       <View style={[styles.actionRail, { bottom: bottomChrome + 90 }]} pointerEvents="box-none">
         <Pressable testID="comments-button" onPress={onComments} style={({ pressed }) => [styles.railButton, pressed && { opacity: 0.7 }]}>
