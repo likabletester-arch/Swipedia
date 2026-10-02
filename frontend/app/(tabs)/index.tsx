@@ -46,8 +46,8 @@ import { useI18n } from "@/src/i18n";
 import { usesNativeTabs } from "@/src/navigation";
 import { formatPoints, rankFor, rankName } from "@/src/ranks";
 import { makeStyles, useTheme } from "@/src/theme";
-import RanksScreen from "@/app/(tabs)/ranks";
-import NotificationsScreen from "@/app/notifications";
+import RanksScreen from "@/src/screens/ranks-screen";
+import NotificationsScreen from "@/src/screens/notifications-screen";
 
 type AnswerResult = { index: number; correct: boolean; correctIndex?: number; explanation?: string };
 
