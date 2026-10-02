@@ -597,9 +597,82 @@ async def seed_database() -> None:
 async def startup_db() -> None:
     await seed_database()
     try:
+        await ensure_official_content()
+    except Exception as exc:  # seed başarısız olsa bile API ayağa kalkar
+        logger.warning("Official content seed failed: %s", exc)
+    try:
         await run_in_threadpool(init_storage)
     except Exception as exc:  # storage kullanılamıyorsa yükleme endpoint'i hata döner
         logger.warning("Object storage init failed: %s", exc)
+
+
+async def ensure_official_content() -> None:
+    """Production Atlas gibi boş bir veritabanında admin hesabını ve 750 resmî soruyu
+    idempotent şekilde oluşturur. Mevcut veriyi ASLA silmez; yalnızca eksikse ekler."""
+    patch = {"name": "Swipedia", "avatar": "app_logo", "verified": True, "is_admin": True}
+    admin = await db.users.find_one({"username": "swipedia"})
+    admin_password = os.environ.get("ADMIN_PASSWORD", "swipedia123")
+    if admin:
+        await db.users.update_one({"user_id": admin["user_id"]}, {"$set": patch})
+    else:
+        admin = {
+            "user_id": f"user_{uuid.uuid4().hex[:12]}",
+            "username": "swipedia",
+            "email": "official@swipedia.app",
+            "provider": "password",
+            "password_hash": bcrypt.hashpw(admin_password.encode(), bcrypt.gensalt()).decode(),
+            "bio": "Resmî Swipedia hesabı.",
+            "points": 0.0,
+            "point_progress": 0,
+            "correct_count": 0,
+            "saved_count": 0,
+            "created_at": now_utc(),
+            **patch,
+        }
+        await db.users.insert_one(admin.copy())
+        logger.info("Resmî admin hesabı oluşturuldu (@swipedia)")
+
+    # Admin hesabının giriş yapabilmesi için şifresi yoksa ekle (eski kayıtlar için)
+    if not admin.get("password_hash"):
+        await db.users.update_one(
+            {"user_id": admin["user_id"]},
+            {"$set": {"password_hash": bcrypt.hashpw(admin_password.encode(), bcrypt.gensalt()).decode()}},
+        )
+
+    # Resmî sorular zaten varsa tekrar ekleme (idempotent)
+    existing = await db.questions.count_documents({"author_id": admin["user_id"]})
+    if existing > 0:
+        return
+
+    data_file = ROOT_DIR / "seed_data" / "official_questions.json"
+    if not data_file.exists():
+        logger.warning("Resmî soru dosyası bulunamadı: %s", data_file)
+        return
+    data = json.loads(data_file.read_text(encoding="utf-8"))
+    base = now_utc()
+    docs = [{
+        "question_id": f"q_{uuid.uuid4().hex[:12]}",
+        "category": q["category"],
+        "text": q["text"],
+        "options": q["options"],
+        "correct_index": q["correct_index"],
+        "explanation": "",
+        "difficulty": q.get("difficulty", "orta"),
+        "background": None,
+        "author_id": admin["user_id"],
+        "author_name": "Swipedia",
+        "author_username": "swipedia",
+        "author_avatar": "app_logo",
+        "author_verified": True,
+        "likes": 0,
+        "saves_count": 0,
+        "shares_count": 0,
+        "comments_count": 0,
+        "created_at": base - timedelta(seconds=index),
+    } for index, q in enumerate(data)]
+    if docs:
+        await db.questions.insert_many(docs)
+        logger.info("Resmî %d soru production veritabanına eklendi", len(docs))
 
 
 @api_router.get("/")
