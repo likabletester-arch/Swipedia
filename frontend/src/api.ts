@@ -48,7 +48,7 @@ export type Comment = { comment_id: string; question_id: string; user_id: string
 export type Person = { user_id: string; name: string; bio?: string; points?: number; avatar?: string };
 export type Message = { message_id: string; sender_id: string; recipient_id: string; sender_name: string; text: string; question_id?: string; created_at: string };
 export type Conversation = { participants: string[]; other_name: string; last_message: string; updated_at: string };
-export type Leader = { rank: number; user_id: string; name: string; points: number; correct_count: number };
+export type Leader = { rank: number; user_id: string; name: string; points: number; correct_count: number; avatar?: string };
 export type Notification = {
   notification_id: string;
   user_id: string;
@@ -164,6 +164,8 @@ export const toggleSave = (questionId: string) => api<{ saved: boolean }>(`/ques
 export const createQuestion = (payload: { category: string; text: string; options: string[]; correct_index: number; explanation: string; difficulty: string; background?: string | null }) =>
   api<Question>("/questions", { method: "POST", body: JSON.stringify(payload) }, true);
 export const fetchLeaderboard = () => api<Leader[]>("/leaderboard");
+export const fetchSavedQuestions = () => api<Question[]>("/saved-questions", {}, true);
+export const fetchMyQuestions = () => api<Question[]>("/my-questions", {}, true);
 export const fetchPeople = () => api<Person[]>("/people", {}, true);
 export const fetchConversations = () => api<Conversation[]>("/conversations", {}, true);
 export const fetchMessages = (userId: string) => api<Message[]>(`/conversations/${userId}/messages`, {}, true);

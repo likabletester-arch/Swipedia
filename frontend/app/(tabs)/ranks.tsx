@@ -1,13 +1,18 @@
 import { Ionicons } from "@expo/vector-icons";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { fetchLeaderboard, type Leader } from "@/src/api";
 import { useAuth } from "@/src/auth";
 import { FadeSlideIn } from "@/src/components/fade-slide-in";
+import { UserAvatar } from "@/src/components/user-avatar";
 import { useI18n } from "@/src/i18n";
 import { usesNativeTabs } from "@/src/navigation";
 import { formatPoints, nextRank, RANKS, rankFor, rankName } from "@/src/ranks";
 import { makeStyles, useTheme } from "@/src/theme";
+
+const MEDALS = ["#F5B301", "#9AA3AD", "#C77B3B"];
 
 export default function RanksScreen() {
   const styles = useStyles();
@@ -16,11 +21,19 @@ export default function RanksScreen() {
   const { t, lang } = useI18n();
   const { user } = useAuth();
   const bottomChrome = usesNativeTabs ? insets.bottom : 0;
+  const [leaders, setLeaders] = useState<Leader[]>([]);
+  const [boardOpen, setBoardOpen] = useState(false);
+
+  useEffect(() => {
+    fetchLeaderboard().then(setLeaders).catch(() => setLeaders([]));
+  }, []);
 
   if (!user) return null;
   const current = rankFor(user.points);
   const upcoming = nextRank(user.points);
   const progress = upcoming ? Math.min(1, (user.points - current.min) / (upcoming.min - current.min)) : 1;
+  const top3 = leaders.slice(0, 3);
+  const rest = leaders.slice(3, 100);
 
   return (
     <View style={styles.screen} testID="ranks-screen">
@@ -75,6 +88,55 @@ export default function RanksScreen() {
             </View></FadeSlideIn>
           );
         })}
+
+        {/* Meraklılar — dokunarak açılan ilk 100 sıralaması */}
+        <FadeSlideIn delay={120}>
+          <Pressable testID="leaderboard-toggle" onPress={() => setBoardOpen((v) => !v)} style={({ pressed }) => [styles.boardHeader, pressed && { opacity: 0.85 }]}>
+            <View style={styles.boardHeaderIcon}><Ionicons name="people" size={16} color={colors.onBrandTertiary} /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.boardTitle}>{t("ranks.leaderboard")}</Text>
+              <Text style={styles.boardHint}>{t("ranks.leaderboardHint")}</Text>
+            </View>
+            <Ionicons name={boardOpen ? "chevron-up" : "chevron-down"} size={18} color={colors.muted} />
+          </Pressable>
+        </FadeSlideIn>
+
+        {boardOpen && (
+          <View testID="leaderboard-content">
+            {top3.length > 0 && (
+              <View style={styles.podium}>
+                {top3.map((leader, index) => {
+                  const first = index === 0;
+                  const size = first ? 84 : 55;
+                  return (
+                    <View key={leader.user_id} style={[styles.podiumItem, first && styles.podiumFirst]} testID={`podium-${index + 1}`}>
+                      <View style={[styles.medal, { backgroundColor: MEDALS[index] }]}>
+                        <Text style={styles.medalText}>{index + 1}</Text>
+                      </View>
+                      <UserAvatar avatar={leader.avatar} name={leader.name} size={size} radius={Math.round(size * 0.34)} />
+                      <Text style={[styles.podiumName, first && { fontSize: 13 }]} numberOfLines={1}>{leader.name}</Text>
+                      <Text style={[styles.podiumPoints, first && { fontSize: 13 }]}>{formatPoints(leader.points)} p</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+
+            {rest.map((leader) => (
+              <View style={styles.listCard} key={leader.user_id} testID={`leader-row-${leader.rank}`}>
+                <Text style={styles.rankNumber}>#{leader.rank}</Text>
+                <UserAvatar avatar={leader.avatar} name={leader.name} size={36} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.listName} numberOfLines={1}>{leader.name}</Text>
+                  <Text style={styles.listMeta}>{leader.correct_count} {t("profile.corrects").toLowerCase()}</Text>
+                </View>
+                <Text style={styles.listPoints}>{formatPoints(leader.points)} p</Text>
+              </View>
+            ))}
+
+            {leaders.length === 0 && <Text style={styles.boardEmpty}>{t("profile.leaderboardEmpty")}</Text>}
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -103,4 +165,21 @@ const useStyles = makeStyles((colors) => StyleSheet.create({
   hereChip: { borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 },
   hereChipText: { color: "#FFFFFF", fontSize: 9, fontWeight: "900" },
   rankRange: { color: colors.muted, fontSize: 9, fontWeight: "800" },
+  boardHeader: { flexDirection: "row", alignItems: "center", gap: 11, backgroundColor: colors.surfaceSecondary, borderRadius: 18, padding: 14, borderWidth: 1, borderColor: colors.border, marginTop: 4, marginBottom: 12 },
+  boardHeaderIcon: { width: 34, height: 34, borderRadius: 12, backgroundColor: colors.brandTertiary, alignItems: "center", justifyContent: "center" },
+  boardTitle: { color: colors.onSurface, fontSize: 13, fontWeight: "900" },
+  boardHint: { color: colors.muted, fontSize: 9, fontWeight: "700", marginTop: 2 },
+  podium: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 8, marginBottom: 16, paddingHorizontal: 4 },
+  podiumItem: { flex: 1, alignItems: "center", gap: 6, backgroundColor: colors.surfaceSecondary, borderRadius: 18, paddingVertical: 14, paddingHorizontal: 6, borderWidth: 1, borderColor: colors.border },
+  podiumFirst: { backgroundColor: colors.brandTertiary, borderColor: colors.brandPrimary, paddingVertical: 20 },
+  medal: { width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center" },
+  medalText: { color: "#FFFFFF", fontSize: 11, fontWeight: "900" },
+  podiumName: { color: colors.onSurface, fontSize: 11, fontWeight: "800", maxWidth: "100%" },
+  podiumPoints: { color: colors.brandPrimary, fontSize: 11, fontWeight: "900" },
+  listCard: { backgroundColor: colors.surfaceSecondary, borderRadius: 15, padding: 11, marginBottom: 8, borderWidth: 1, borderColor: colors.border, flexDirection: "row", alignItems: "center", gap: 10 },
+  rankNumber: { color: colors.brandPrimary, fontSize: 12, fontWeight: "900", width: 32 },
+  listName: { color: colors.onSurfaceSecondary, fontSize: 12, fontWeight: "800" },
+  listMeta: { color: colors.muted, fontSize: 9, marginTop: 2 },
+  listPoints: { color: colors.brandPrimary, fontWeight: "900", fontSize: 12 },
+  boardEmpty: { color: colors.muted, fontSize: 10, lineHeight: 16, textAlign: "center", marginTop: 6 },
 }));

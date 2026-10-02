@@ -917,8 +917,26 @@ async def create_question(payload: QuestionCreate, user: Dict[str, Any] = Depend
 
 @api_router.get("/leaderboard")
 async def leaderboard() -> List[Dict[str, Any]]:
-    users = await db.users.find({"provider": {"$ne": "guest"}}, {"_id": 0, "name": 1, "user_id": 1, "points": 1, "correct_count": 1}).sort([("points", -1), ("correct_count", -1)]).to_list(20)
-    return [{**item, "points": int(float(item.get("points", 0))), "rank": index + 1} for index, item in enumerate(users)]
+    users = await db.users.find({"provider": {"$ne": "guest"}}, {"_id": 0, "name": 1, "user_id": 1, "points": 1, "correct_count": 1, "avatar": 1}).sort([("points", -1), ("correct_count", -1)]).to_list(100)
+    return [{**item, "points": int(float(item.get("points", 0))), "avatar": item.get("avatar", ""), "rank": index + 1} for index, item in enumerate(users)]
+
+
+@api_router.get("/saved-questions")
+async def saved_questions_list(user: Dict[str, Any] = Depends(get_current_user)) -> List[Dict[str, Any]]:
+    rows = await db.saved_questions.find({"user_id": user["user_id"]}, {"_id": 0, "question_id": 1, "created_at": 1}).sort("created_at", -1).to_list(300)
+    ids = [r["question_id"] for r in rows]
+    if not ids:
+        return []
+    qmap = {q["question_id"]: q for q in await db.questions.find({"question_id": {"$in": ids}}, {"_id": 0}).to_list(300)}
+    return [question_public(qmap[i], True) for i in ids if i in qmap]
+
+
+@api_router.get("/my-questions")
+async def my_questions_list(user: Dict[str, Any] = Depends(get_current_user)) -> List[Dict[str, Any]]:
+    saved = await db.saved_questions.find({"user_id": user["user_id"]}, {"_id": 0, "question_id": 1}).to_list(500)
+    saved_ids = {s["question_id"] for s in saved}
+    rows = await db.questions.find({"author_id": user["user_id"]}, {"_id": 0}).sort("created_at", -1).to_list(300)
+    return [question_public(q, q["question_id"] in saved_ids) for q in rows]
 
 
 # ---------- Messaging ----------

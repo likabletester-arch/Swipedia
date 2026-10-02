@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,14 +11,17 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { fetchLeaderboard, type Leader } from "@/src/api";
+import { fetchMyQuestions, fetchSavedQuestions, type Question } from "@/src/api";
 import { useAuth } from "@/src/auth";
+import { categoryIcon } from "@/src/categories";
 import { FadeSlideIn } from "@/src/components/fade-slide-in";
 import { UserAvatar } from "@/src/components/user-avatar";
 import { useI18n } from "@/src/i18n";
 import { usesNativeTabs } from "@/src/navigation";
 import { formatPoints, rankFor, rankName } from "@/src/ranks";
 import { makeStyles, useTheme } from "@/src/theme";
+
+type Tab = "shared" | "saved";
 
 export default function ProfileScreen() {
   const styles = useStyles();
@@ -27,14 +31,28 @@ export default function ProfileScreen() {
   const { t, lang } = useI18n();
   const { user, logout } = useAuth();
   const bottomChrome = usesNativeTabs ? insets.bottom : 0;
-  const [leaders, setLeaders] = useState<Leader[]>([]);
+
+  const [tab, setTab] = useState<Tab>("shared");
+  const [shared, setShared] = useState<Question[]>([]);
+  const [saved, setSaved] = useState<Question[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchLeaderboard().then(setLeaders).catch(() => setLeaders([]));
+    let active = true;
+    setLoading(true);
+    Promise.all([fetchMyQuestions().catch(() => []), fetchSavedQuestions().catch(() => [])])
+      .then(([mine, savedList]) => {
+        if (!active) return;
+        setShared(mine);
+        setSaved(savedList);
+      })
+      .finally(() => active && setLoading(false));
+    return () => { active = false; };
   }, []);
 
   if (!user) return null;
   const rank = rankFor(user.points);
+  const items = tab === "shared" ? shared : saved;
 
   const onLogout = async () => {
     await logout();
@@ -48,15 +66,20 @@ export default function ProfileScreen() {
           <Text style={styles.headerTitle}>{t("profile.title")}</Text>
           <Text style={styles.headerHint}>{t("profile.hint")}</Text>
         </View>
-        <Pressable testID="settings-button" onPress={() => router.push("/settings")} style={({ pressed }) => [styles.iconButton, pressed && { opacity: 0.7 }]}>
-          <Ionicons name="settings-outline" size={19} color={colors.onSurface} />
-        </Pressable>
+        <View style={{ flexDirection: "row", gap: 9 }}>
+          <Pressable testID="logout-icon-button" onPress={onLogout} style={({ pressed }) => [styles.iconButton, pressed && { opacity: 0.7 }]}>
+            <Ionicons name="log-out-outline" size={19} color={colors.error} />
+          </Pressable>
+          <Pressable testID="settings-button" onPress={() => router.push("/settings")} style={({ pressed }) => [styles.iconButton, pressed && { opacity: 0.7 }]}>
+            <Ionicons name="settings-outline" size={19} color={colors.onSurface} />
+          </Pressable>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={[styles.listContent, { paddingBottom: bottomChrome + 26 }]}>
         <FadeSlideIn><View style={styles.profileTop}>
-          <UserAvatar avatar={user.avatar} name={user.name} size={68} radius={23} />
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+          <UserAvatar avatar={user.avatar} name={user.name} size={74} radius={25} />
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 10 }}>
             <Text style={styles.profileName} testID="profile-name">{user.name}</Text>
             {!!user.verified && <Ionicons name="checkmark-circle" size={14} color={colors.brandPrimary} testID="profile-verified-badge" />}
           </View>
@@ -74,33 +97,46 @@ export default function ProfileScreen() {
           </View>
         </View></FadeSlideIn>
 
-        <FadeSlideIn delay={90}><View style={styles.statCard} testID="points-card">
-          <Text style={styles.statEyebrow}>{t("profile.lab")}</Text>
-          <Text style={styles.statBig}>{formatPoints(user.points)} {t("common.points")}</Text>
-          <Text style={styles.statSub}>{user.point_progress}/{user.point_rate} · {t("profile.rateInfo", { rate: user.point_rate })}</Text>
-          <View style={styles.statRow}>
-            <View style={styles.miniStat}><Text style={styles.miniNumber}>{user.correct_count}</Text><Text style={styles.miniLabel}>{t("profile.totalCorrect")}</Text></View>
-            <View style={styles.miniStat}><Text style={styles.miniNumber}>{user.point_rate - user.point_progress}</Text><Text style={styles.miniLabel}>{t("profile.toBonus")}</Text></View>
-          </View>
-        </View></FadeSlideIn>
+        {/* Instagram tarzı orta bar */}
+        <View style={styles.tabBar}>
+          <Pressable testID="profile-tab-shared" onPress={() => setTab("shared")} style={[styles.tabButton, tab === "shared" && styles.tabButtonActive]}>
+            <Ionicons name="grid-outline" size={16} color={tab === "shared" ? colors.onSurface : colors.muted} />
+            <Text style={[styles.tabText, { color: tab === "shared" ? colors.onSurface : colors.muted }]}>{t("profile.tabShared")}</Text>
+          </Pressable>
+          <Pressable testID="profile-tab-saved" onPress={() => setTab("saved")} style={[styles.tabButton, tab === "saved" && styles.tabButtonActive]}>
+            <Ionicons name="bookmark-outline" size={16} color={tab === "saved" ? colors.onSurface : colors.muted} />
+            <Text style={[styles.tabText, { color: tab === "saved" ? colors.onSurface : colors.muted }]}>{t("profile.tabSaved")}</Text>
+          </Pressable>
+        </View>
 
-        <Text style={styles.sectionLabel}>{t("profile.leaderboard")}</Text>
-        {leaders.length ? leaders.map((leader) => (
-          <View style={styles.listCard} key={leader.user_id} testID={`leader-row-${leader.rank}`}>
-            <Text style={styles.rankNumber}>#{leader.rank}</Text>
-            <UserAvatar avatar={undefined} name={leader.name} size={38} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.listName}>{leader.name}</Text>
-              <Text style={styles.listMeta}>{leader.correct_count} {t("profile.corrects").toLowerCase()}</Text>
-            </View>
-            <Text style={styles.points}>{formatPoints(leader.points)} p</Text>
+        {loading ? (
+          <ActivityIndicator color={colors.brandPrimary} style={{ marginTop: 28 }} />
+        ) : items.length ? (
+          <View style={styles.grid} testID={`profile-grid-${tab}`}>
+            {items.map((q, index) => (
+              <FadeSlideIn key={q.question_id} delay={index * 40} style={styles.tileWrap}>
+                <View style={styles.tile} testID={`question-tile-${q.question_id}`}>
+                  <View style={styles.tileHead}>
+                    <View style={styles.tileCat}>
+                      <Ionicons name={categoryIcon(q.category)} size={10} color={colors.onBrandTertiary} />
+                      <Text style={styles.tileCatText} numberOfLines={1}>{q.category}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.tileText} numberOfLines={4}>{q.text}</Text>
+                  <View style={styles.tileFoot}>
+                    <Text style={styles.tileDiff}>{t(`diff.${q.difficulty}`)}</Text>
+                    <View style={styles.tileMeta}>
+                      <Ionicons name="bookmark" size={10} color={colors.muted} />
+                      <Text style={styles.tileMetaText}>{q.saves_count}</Text>
+                    </View>
+                  </View>
+                </View>
+              </FadeSlideIn>
+            ))}
           </View>
-        )) : <Text style={styles.emptyText}>{t("profile.leaderboardEmpty")}</Text>}
-
-        <Pressable testID="logout-button" onPress={onLogout} style={({ pressed }) => [styles.logoutButton, pressed && { opacity: 0.75 }]}>
-          <Ionicons name="log-out-outline" size={17} color={colors.error} />
-          <Text style={styles.logoutText}>{t("profile.logout")}</Text>
-        </Pressable>
+        ) : (
+          <Text style={styles.emptyText}>{tab === "shared" ? t("profile.noShared") : t("profile.noSaved")}</Text>
+        )}
       </ScrollView>
     </View>
   );
@@ -114,9 +150,7 @@ const useStyles = makeStyles((colors) => StyleSheet.create({
   iconButton: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.surfaceSecondary, alignItems: "center", justifyContent: "center" },
   listContent: { paddingHorizontal: 18 },
   profileTop: { alignItems: "center", paddingVertical: 12 },
-  profileAvatar: { width: 68, height: 68, borderRadius: 23, backgroundColor: colors.brandTertiary, alignItems: "center", justifyContent: "center" },
-  profileInitial: { color: colors.onBrandTertiary, fontSize: 26, fontWeight: "900" },
-  profileName: { color: colors.onSurface, fontSize: 16, fontWeight: "900", marginTop: 10 },
+  profileName: { color: colors.onSurface, fontSize: 16, fontWeight: "900" },
   profileUsername: { color: colors.muted, fontSize: 10, fontWeight: "700", marginTop: 3 },
   rankChip: { flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 999, borderWidth: 1.5, paddingHorizontal: 11, paddingVertical: 6, marginTop: 10 },
   rankChipIcon: { width: 20, height: 20, borderRadius: 10, alignItems: "center", justifyContent: "center" },
@@ -125,23 +159,20 @@ const useStyles = makeStyles((colors) => StyleSheet.create({
   profileStat: { flex: 1, backgroundColor: colors.surfaceSecondary, borderRadius: 15, paddingVertical: 11, alignItems: "center" },
   profileStatNumber: { color: colors.onSurface, fontSize: 14, fontWeight: "900" },
   profileStatLabel: { color: colors.muted, fontSize: 9, marginTop: 2 },
-  statCard: { backgroundColor: colors.surfaceInverse, borderRadius: 22, padding: 17, marginBottom: 14, marginTop: 5 },
-  statEyebrow: { color: colors.brandSecondary, fontSize: 9, fontWeight: "800", letterSpacing: 1 },
-  statBig: { color: colors.onSurfaceInverse, fontSize: 24, fontWeight: "900", marginTop: 3 },
-  statSub: { color: colors.onSurfaceInverse, opacity: 0.68, fontSize: 10, marginTop: 3 },
-  statRow: { flexDirection: "row", gap: 9, marginTop: 14 },
-  miniStat: { flex: 1, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.1)", padding: 10 },
-  miniNumber: { color: colors.onSurfaceInverse, fontSize: 14, fontWeight: "900" },
-  miniLabel: { color: colors.onSurfaceInverse, opacity: 0.65, fontSize: 9, marginTop: 2 },
-  sectionLabel: { color: colors.onSurface, fontSize: 12, fontWeight: "800", marginBottom: 9, marginTop: 6 },
-  listCard: { backgroundColor: colors.surfaceSecondary, borderRadius: 17, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: colors.border, flexDirection: "row", alignItems: "center", gap: 9 },
-  rankNumber: { color: colors.brandPrimary, fontSize: 13, fontWeight: "900", width: 28 },
-  avatar: { width: 38, height: 38, borderRadius: 13, backgroundColor: colors.brandTertiary, alignItems: "center", justifyContent: "center" },
-  avatarText: { color: colors.onBrandTertiary, fontSize: 13, fontWeight: "900" },
-  listName: { color: colors.onSurfaceSecondary, fontSize: 12, fontWeight: "800" },
-  listMeta: { color: colors.muted, fontSize: 10, marginTop: 2 },
-  points: { color: colors.brandPrimary, fontWeight: "900", fontSize: 12 },
-  emptyText: { color: colors.muted, lineHeight: 17, fontSize: 10, marginTop: 3 },
-  logoutButton: { minHeight: 48, borderRadius: 15, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderStrong, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, marginTop: 16 },
-  logoutText: { color: colors.error, fontSize: 12, fontWeight: "800" },
+  tabBar: { flexDirection: "row", marginTop: 16, borderBottomWidth: 1, borderBottomColor: colors.divider },
+  tabButton: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 13, borderBottomWidth: 2, borderBottomColor: "transparent" },
+  tabButtonActive: { borderBottomColor: colors.onSurface },
+  tabText: { fontSize: 12, fontWeight: "800" },
+  grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", marginTop: 14 },
+  tileWrap: { width: "48.5%", marginBottom: 11 },
+  tile: { backgroundColor: colors.surfaceSecondary, borderRadius: 16, padding: 12, borderWidth: 1, borderColor: colors.border, minHeight: 128, justifyContent: "space-between" },
+  tileHead: { flexDirection: "row" },
+  tileCat: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: colors.brandTertiary, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4, maxWidth: "100%" },
+  tileCatText: { color: colors.onBrandTertiary, fontSize: 9, fontWeight: "800", flexShrink: 1 },
+  tileText: { color: colors.onSurface, fontSize: 12, fontWeight: "700", lineHeight: 17, marginTop: 9, flex: 1 },
+  tileFoot: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 9 },
+  tileDiff: { color: colors.muted, fontSize: 9, fontWeight: "800", textTransform: "capitalize" },
+  tileMeta: { flexDirection: "row", alignItems: "center", gap: 3 },
+  tileMetaText: { color: colors.muted, fontSize: 10, fontWeight: "700" },
+  emptyText: { color: colors.muted, lineHeight: 18, fontSize: 11, marginTop: 24, textAlign: "center", paddingHorizontal: 20 },
 }));
