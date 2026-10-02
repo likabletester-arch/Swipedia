@@ -254,12 +254,16 @@ export default function LoginScreen() {
               <TextInput testID="password-input" value={password} onChangeText={setPassword} placeholder={t("auth.password")} placeholderTextColor={colors.muted} secureTextEntry style={styles.input} />
               <Text style={styles.phoneHint}>{t("auth.passwordRule")}</Text>
               <View style={styles.genderRow}>
-                {(["erkek", "kadın"] as const).map((g) => (
-                  <Pressable key={g} testID={`gender-${g}`} onPress={() => setGender(g)} style={[styles.genderChip, gender === g && styles.genderChipActive]}>
-                    <Ionicons name={g === "erkek" ? "male" : "female"} size={14} color={gender === g ? colors.onBrandTertiary : colors.muted} />
-                    <Text style={[styles.genderText, { color: gender === g ? colors.onBrandTertiary : colors.muted }]}>{t(`auth.gender_${g === "erkek" ? "male" : "female"}`)}</Text>
-                  </Pressable>
-                ))}
+                {(["erkek", "kadın"] as const).map((g) => {
+                  const gc = g === "erkek" ? "#2F80ED" : "#E84C9A";
+                  const on = gender === g;
+                  return (
+                    <Pressable key={g} testID={`gender-${g}`} onPress={() => setGender(g)} style={[styles.genderChip, on && { borderColor: gc, backgroundColor: gc + "22" }]}>
+                      <Ionicons name={g === "erkek" ? "male" : "female"} size={15} color={on ? gc : colors.muted} />
+                      <Text style={[styles.genderText, { color: on ? gc : colors.muted }]}>{t(`auth.gender_${g === "erkek" ? "male" : "female"}`)}</Text>
+                    </Pressable>
+                  );
+                })}
               </View>
               {!!error && <Text testID="auth-error-text" style={styles.errText}>{error}</Text>}
               <Pressable testID="auth-submit-button" disabled={busy} onPress={sendRegisterCode} style={({ pressed }) => [styles.primaryButton, pressed && { opacity: 0.78 }, busy && { opacity: 0.6 }]}>
