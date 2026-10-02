@@ -36,6 +36,12 @@ SESSION_DAYS = 7
 
 app = FastAPI(title="Swipedia API")
 api_router = APIRouter(prefix="/api")
+
+
+@app.get("/health")
+async def health() -> Dict[str, str]:
+    """Kubernetes/deployment health probe (prefix'siz)."""
+    return {"status": "ok"}
 logger = logging.getLogger(__name__)
 
 # --- Emergent Object Storage ---
