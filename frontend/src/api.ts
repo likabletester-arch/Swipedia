@@ -25,6 +25,10 @@ export type User = {
   point_rate: number;
   correct_count: number;
   saved_count: number;
+  followers_count?: number;
+  following_count?: number;
+  is_following?: boolean;
+  questions_count?: number;
 };
 
 export type Question = {
@@ -45,6 +49,7 @@ export type Question = {
   shares_count: number;
   comments_count: number;
   saved: boolean;
+  liked: boolean;
 };
 
 export type Comment = { comment_id: string; question_id: string; user_id: string; user_name: string; text: string; created_at: string };
@@ -176,6 +181,8 @@ export const answerQuestion = (questionId: string, optionIndex: number) =>
     true,
   );
 export const toggleSave = (questionId: string) => api<{ saved: boolean }>(`/questions/${questionId}/save`, { method: "POST" }, true);
+export const toggleLike = (questionId: string) => api<{ liked: boolean; likes: number }>(`/questions/${questionId}/like`, { method: "POST" }, true);
+export const toggleFollow = (userId: string) => api<{ following: boolean; followers_count: number; following_count: number; is_following: boolean }>(`/users/${userId}/follow`, { method: "POST" }, true);
 export const createQuestion = (payload: { category: string; text: string; options: string[]; correct_index: number; explanation: string; difficulty: string; background?: string | null }) =>
   api<Question>("/questions", { method: "POST", body: JSON.stringify(payload) }, true);
 export const fetchLeaderboard = () => api<Leader[]>("/leaderboard");

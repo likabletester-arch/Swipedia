@@ -11,12 +11,15 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { fetchUserProfile, type Question, type User } from "@/src/api";
+import { fetchUserProfile, toggleFollow, type Question, type User } from "@/src/api";
+import { useAuth } from "@/src/auth";
 import { categoryIcon } from "@/src/categories";
 import { FadeSlideIn } from "@/src/components/fade-slide-in";
+import { CreatorRankCard } from "@/src/components/creator-rank-card";
+import { ToastView, useToast } from "@/src/components/toast";
 import { UserAvatar } from "@/src/components/user-avatar";
 import { useI18n } from "@/src/i18n";
-import { formatPoints, rankFor, rankName } from "@/src/ranks";
+import { rankFor, rankName } from "@/src/ranks";
 import { makeStyles, useTheme } from "@/src/theme";
 
 export default function PublicProfileScreen() {
@@ -26,11 +29,14 @@ export default function PublicProfileScreen() {
   const router = useRouter();
   const { t, lang } = useI18n();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { user: me } = useAuth();
+  const toast = useToast();
 
   const [profile, setProfile] = useState<User | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [followBusy, setFollowBusy] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -48,6 +54,20 @@ export default function PublicProfileScreen() {
   }, [id]);
 
   const rank = profile ? rankFor(profile.points) : null;
+  const isSelf = !!me && !!profile && me.user_id === profile.user_id;
+
+  const onToggleFollow = async () => {
+    if (!profile || followBusy) return;
+    setFollowBusy(true);
+    try {
+      const res = await toggleFollow(profile.user_id);
+      setProfile((p) => (p ? { ...p, is_following: res.following, followers_count: res.followers_count } : p));
+    } catch {
+      toast.show(t("auth.error"));
+    } finally {
+      setFollowBusy(false);
+    }
+  };
 
   return (
     <View style={styles.screen} testID="public-profile-screen">
@@ -72,6 +92,7 @@ export default function PublicProfileScreen() {
               {!!profile.verified && <Ionicons name="checkmark-circle" size={14} color={colors.brandPrimary} />}
             </View>
             {!!profile.username && <Text style={styles.profileUsername}>@{profile.username}</Text>}
+            {!!profile.bio && <Text style={styles.bio} testID="public-profile-bio">{profile.bio}</Text>}
             {!profile.is_admin && (
               <View style={[styles.rankChip, { borderColor: rank.color }]}>
                 <View style={[styles.rankChipIcon, { backgroundColor: rank.color }]}>
@@ -80,13 +101,23 @@ export default function PublicProfileScreen() {
                 <Text style={[styles.rankChipText, { color: rank.color }]}>{rankName(rank, lang)}</Text>
               </View>
             )}
-            <View style={[styles.profileStats, profile.is_admin && { marginTop: 14 }]}>
-              {!profile.is_admin && (
-                <View style={styles.profileStat}><Text style={styles.profileStatNumber}>{formatPoints(profile.points)}</Text><Text style={styles.profileStatLabel}>{t("profile.points")}</Text></View>
-              )}
-              <View style={styles.profileStat}><Text style={styles.profileStatNumber}>{profile.correct_count}</Text><Text style={styles.profileStatLabel}>{t("profile.corrects")}</Text></View>
+            {!isSelf && (
+              <Pressable
+                testID="follow-button"
+                onPress={onToggleFollow}
+                disabled={followBusy}
+                style={({ pressed }) => [styles.followButton, profile.is_following ? styles.followingButton : styles.followActive, pressed && { opacity: 0.8 }]}
+              >
+                <Ionicons name={profile.is_following ? "checkmark" : "person-add"} size={14} color={profile.is_following ? colors.onSurface : colors.onBrandPrimary} />
+                <Text style={[styles.followText, { color: profile.is_following ? colors.onSurface : colors.onBrandPrimary }]}>{profile.is_following ? t("profile.unfollow") : t("profile.follow")}</Text>
+              </Pressable>
+            )}
+            <View style={styles.profileStats}>
+              <View style={styles.profileStat}><Text style={styles.profileStatNumber} testID="public-followers-count">{profile.followers_count ?? 0}</Text><Text style={styles.profileStatLabel}>{t("profile.followers")}</Text></View>
+              <View style={styles.profileStat}><Text style={styles.profileStatNumber}>{profile.following_count ?? 0}</Text><Text style={styles.profileStatLabel}>{t("profile.following")}</Text></View>
               <View style={styles.profileStat}><Text style={styles.profileStatNumber}>{questions.length}</Text><Text style={styles.profileStatLabel}>{t("profile.tabShared")}</Text></View>
             </View>
+            {!profile.is_admin && <CreatorRankCard count={profile.questions_count ?? questions.length} />}
           </View></FadeSlideIn>
 
           <View style={styles.tabBar}>
@@ -124,6 +155,7 @@ export default function PublicProfileScreen() {
           )}
         </ScrollView>
       )}
+      <ToastView message={toast.message} bottom={insets.bottom + 24} />
     </View>
   );
 }
@@ -137,6 +169,11 @@ const useStyles = makeStyles((colors) => StyleSheet.create({
   profileTop: { alignItems: "center", paddingVertical: 12 },
   profileName: { color: colors.onSurface, fontSize: 16, fontWeight: "900" },
   profileUsername: { color: colors.muted, fontSize: 10, fontWeight: "700", marginTop: 3 },
+  bio: { color: colors.onSurfaceSecondary, fontSize: 12, lineHeight: 17, textAlign: "center", marginTop: 8, paddingHorizontal: 20 },
+  followButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 999, paddingHorizontal: 22, paddingVertical: 9, marginTop: 12, minWidth: 150 },
+  followActive: { backgroundColor: colors.brandPrimary },
+  followingButton: { backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.border },
+  followText: { fontSize: 12, fontWeight: "900" },
   rankChip: { flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 999, borderWidth: 1.5, paddingHorizontal: 11, paddingVertical: 6, marginTop: 10 },
   rankChipIcon: { width: 20, height: 20, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   rankChipText: { fontSize: 10, fontWeight: "900" },

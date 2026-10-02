@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import * as Linking from "expo-linking";
 import { useRouter } from "expo-router";
@@ -22,6 +23,7 @@ import { useAuth } from "@/src/auth";
 import { ToastView, useToast } from "@/src/components/toast";
 import { UserAvatar } from "@/src/components/user-avatar";
 import { LANG_NAMES, SUPPORTED_LANGS, useI18n, type Lang } from "@/src/i18n";
+import { FEMALE_AVATARS, MALE_AVATARS, STOCK_AVATARS } from "@/src/stock-avatars";
 import { makeStyles, useTheme } from "@/src/theme";
 
 type ChangeMode = "email" | "phone" | "password" | null;
@@ -37,8 +39,11 @@ export default function SettingsScreen() {
 
   const [name, setName] = useState(user?.name ?? "");
   const [username, setUsername] = useState(user?.username ?? "");
+  const [bio, setBio] = useState(user?.bio ?? "");
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [photoModal, setPhotoModal] = useState(false);
+  const [stockGender, setStockGender] = useState<"m" | "f">(user?.gender === "female" ? "f" : "m");
 
   const [mode, setMode] = useState<ChangeMode>(null);
   const [step, setStep] = useState<"input" | "code">("input");
@@ -55,10 +60,11 @@ export default function SettingsScreen() {
   const save = async () => {
     setSaving(true);
     try {
-      const updated = await updateProfile({ name: name.trim() || undefined, username: username.trim() || undefined });
+      const updated = await updateProfile({ name: name.trim() || undefined, username: username.trim() || undefined, bio });
       setUser(updated);
       setName(updated.name);
       setUsername(updated.username);
+      setBio(updated.bio ?? "");
       toast.show(t("settings.saved"));
     } catch (err) {
       toast.show(err instanceof Error ? err.message : t("auth.error"));
@@ -67,7 +73,22 @@ export default function SettingsScreen() {
     }
   };
 
+  const selectStock = async (avatarId: string) => {
+    setPhotoModal(false);
+    setUploading(true);
+    try {
+      const updated = await updateProfile({ avatar: `stock:${avatarId}` });
+      setUser(updated);
+      toast.show(t("settings.photoUpdated"));
+    } catch (err) {
+      toast.show(err instanceof Error ? err.message : t("create.uploadFailed"));
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const pickPhoto = async () => {
+    setPhotoModal(false);
     let permission = await ImagePicker.getMediaLibraryPermissionsAsync();
     if (permission.status !== "granted" && permission.canAskAgain) {
       permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -173,7 +194,7 @@ export default function SettingsScreen() {
           <UserAvatar avatar={user.avatar} name={user.name} size={72} radius={24} />
           <View style={{ flex: 1 }}>
             <Text style={styles.photoName}>{user.name}</Text>
-            <Pressable testID="change-photo-button" disabled={uploading} onPress={pickPhoto} style={({ pressed }) => [styles.photoButton, pressed && { opacity: 0.75 }]}>
+            <Pressable testID="change-photo-button" disabled={uploading} onPress={() => setPhotoModal(true)} style={({ pressed }) => [styles.photoButton, pressed && { opacity: 0.75 }]}>
               {uploading ? <ActivityIndicator color={colors.onBrandTertiary} size="small" /> : (
                 <>
                   <Ionicons name="camera-outline" size={15} color={colors.onBrandTertiary} />
@@ -194,6 +215,8 @@ export default function SettingsScreen() {
             <Text style={styles.atSign}>@</Text>
             <TextInput testID="edit-username-input" value={username} onChangeText={setUsername} placeholder={t("settings.username")} placeholderTextColor={colors.muted} autoCapitalize="none" style={[styles.input, { flex: 1, marginBottom: 0 }]} />
           </View>
+          <Text style={styles.fieldLabel}>{t("settings.bio")}</Text>
+          <TextInput testID="edit-bio-input" value={bio} onChangeText={setBio} placeholder={t("settings.bioPlaceholder")} placeholderTextColor={colors.muted} multiline maxLength={300} style={[styles.input, { minHeight: 70, paddingTop: 10, textAlignVertical: "top" }]} />
           <Pressable testID="save-profile-button" disabled={saving} onPress={save} style={({ pressed }) => [styles.primaryButton, pressed && { opacity: 0.75 }, saving && { opacity: 0.6 }]}>
             {saving ? <ActivityIndicator color={colors.onBrandPrimary} /> : <Text style={styles.primaryButtonText}>{t("settings.saveProfile")}</Text>}
           </Pressable>
@@ -255,6 +278,38 @@ export default function SettingsScreen() {
           <Pressable testID="settings-privacy-link" onPress={() => router.push("/legal?doc=privacy")}><Text style={styles.legalLink}>{t("legal.privacy")}</Text></Pressable>
         </View>
       </KeyboardAwareScrollView>
+
+      {/* Profil fotoğrafı seçme modalı */}
+      <Modal visible={photoModal} transparent animationType="slide" onRequestClose={() => setPhotoModal(false)}>
+        <View style={styles.modalBackdrop}>
+          <Pressable style={{ flex: 1 }} onPress={() => setPhotoModal(false)} />
+          <View style={styles.sheet} testID="photo-sheet">
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>{t("settings.stockTitle")}</Text>
+            <View style={styles.genderTabs}>
+              <Pressable testID="stock-gender-male" onPress={() => setStockGender("m")} style={[styles.genderTab, stockGender === "m" && { backgroundColor: "#3A86FF" }]}>
+                <Ionicons name="male" size={14} color={stockGender === "m" ? "#FFFFFF" : colors.muted} />
+                <Text style={[styles.genderTabText, { color: stockGender === "m" ? "#FFFFFF" : colors.muted }]}>{t("settings.genderMale")}</Text>
+              </Pressable>
+              <Pressable testID="stock-gender-female" onPress={() => setStockGender("f")} style={[styles.genderTab, stockGender === "f" && { backgroundColor: "#FF5B9E" }]}>
+                <Ionicons name="female" size={14} color={stockGender === "f" ? "#FFFFFF" : colors.muted} />
+                <Text style={[styles.genderTabText, { color: stockGender === "f" ? "#FFFFFF" : colors.muted }]}>{t("settings.genderFemale")}</Text>
+              </Pressable>
+            </View>
+            <View style={styles.stockGrid}>
+              {(stockGender === "m" ? MALE_AVATARS : FEMALE_AVATARS).map((avatarId) => (
+                <Pressable key={avatarId} testID={`stock-avatar-${avatarId}`} onPress={() => selectStock(avatarId)} style={({ pressed }) => [styles.stockTile, pressed && { opacity: 0.7 }, user.avatar === `stock:${avatarId}` && styles.stockTileActive]}>
+                  <Image source={STOCK_AVATARS[avatarId]} style={styles.stockImage} contentFit="cover" />
+                </Pressable>
+              ))}
+            </View>
+            <Pressable testID="upload-gallery-button" onPress={pickPhoto} style={({ pressed }) => [styles.galleryButton, pressed && { opacity: 0.8 }]}>
+              <Ionicons name="image-outline" size={17} color={colors.onSurface} />
+              <Text style={styles.galleryButtonText}>{t("settings.uploadGallery")}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
 
       {/* Değişiklik modalı */}
       <Modal visible={mode !== null} transparent animationType="slide" onRequestClose={closeChange}>
@@ -378,6 +433,15 @@ const useStyles = makeStyles((colors) => StyleSheet.create({
   sheet: { backgroundColor: colors.surface, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 18, paddingBottom: 28 },
   sheetHandle: { width: 36, height: 4, borderRadius: 3, backgroundColor: colors.borderStrong, alignSelf: "center", marginBottom: 13 },
   sheetTitle: { color: colors.onSurface, fontSize: 15, fontWeight: "900", marginBottom: 12 },
+  genderTabs: { flexDirection: "row", gap: 10, marginBottom: 14 },
+  genderTab: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 42, borderRadius: 13, backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.border },
+  genderTabText: { fontSize: 12, fontWeight: "800" },
+  stockGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", gap: 10, marginBottom: 14 },
+  stockTile: { width: "30%", aspectRatio: 1, borderRadius: 18, overflow: "hidden", borderWidth: 2, borderColor: "transparent" },
+  stockTileActive: { borderColor: colors.brandPrimary },
+  stockImage: { width: "100%", height: "100%" },
+  galleryButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, minHeight: 48, borderRadius: 14, backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.border },
+  galleryButtonText: { color: colors.onSurface, fontSize: 12, fontWeight: "800" },
   verifyHint: { color: colors.muted, fontSize: 11, lineHeight: 16, marginBottom: 11 },
   changeError: { color: colors.error, fontSize: 10, marginBottom: 8 },
   resendButton: { minHeight: 42, alignItems: "center", justifyContent: "center", marginTop: 4 },

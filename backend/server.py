@@ -313,7 +313,7 @@ def public_user(user: Dict[str, Any]) -> Dict[str, Any]:
         "gender_hidden": bool(user.get("gender_hidden", False)),
         "email_verified": bool(user.get("email_verified", False)),
         "avatar": user.get("avatar", ""),
-        "bio": user.get("bio", "Curious about everything."),
+        "bio": user.get("bio", ""),
         "points": int(float(user.get("points", 0))),
         "point_progress": user.get("point_progress", 0),
         "point_rate": rate_for(float(user.get("points", 0))),
@@ -530,7 +530,7 @@ STARTER_QUESTIONS = [
 ]
 
 
-def question_public(question: Dict[str, Any], saved: bool = False) -> Dict[str, Any]:
+def question_public(question: Dict[str, Any], saved: bool = False, liked: bool = False) -> Dict[str, Any]:
     return {
         "question_id": question["question_id"],
         "category": question["category"],
@@ -549,6 +549,7 @@ def question_public(question: Dict[str, Any], saved: bool = False) -> Dict[str, 
         "shares_count": question.get("shares_count", 0),
         "comments_count": question.get("comments_count", 0),
         "saved": saved,
+        "liked": liked,
     }
 
 
@@ -576,6 +577,9 @@ async def seed_database() -> None:
     await db.user_sessions.create_index("expires_at", expireAfterSeconds=0)
     await db.questions.create_index("question_id", unique=True)
     await db.saved_questions.create_index([("user_id", 1), ("question_id", 1)], unique=True)
+    await db.question_likes.create_index([("user_id", 1), ("question_id", 1)], unique=True)
+    await db.follows.create_index([("follower_id", 1), ("following_id", 1)], unique=True)
+    await db.follows.create_index("following_id")
     await db.uploads.create_index("path", unique=True)
     await db.notifications.create_index([("user_id", 1), ("created_at", -1)])
     await db.notifications.create_index("notification_id", unique=True)
@@ -828,7 +832,9 @@ async def apple_session(payload: AppleSession) -> Dict[str, Any]:
 
 @api_router.get("/auth/me")
 async def me(user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, Any]:
-    return {"user": public_user(user)}
+    stats = await follow_stats(user["user_id"], user["user_id"])
+    questions_count = await db.questions.count_documents({"author_id": user["user_id"]})
+    return {"user": {**public_user(user), **stats, "questions_count": questions_count}}
 
 
 @api_router.patch("/users/me")
@@ -925,11 +931,35 @@ async def confirm_change(payload: ContactChangeVerify, user: Dict[str, Any] = De
 async def feed(request: Request) -> List[Dict[str, Any]]:
     user = await get_optional_user(request)
     saved_ids = set()
+    liked_ids = set()
     if user:
         saved = await db.saved_questions.find({"user_id": user["user_id"]}, {"_id": 0, "question_id": 1}).to_list(200)
         saved_ids = {item["question_id"] for item in saved}
+        liked = await db.question_likes.find({"user_id": user["user_id"]}, {"_id": 0, "question_id": 1}).to_list(400)
+        liked_ids = {item["question_id"] for item in liked}
     questions = await db.questions.find({}, {"_id": 0}).sort("created_at", -1).to_list(100)
-    return [question_public(item, item["question_id"] in saved_ids) for item in questions]
+    return [question_public(item, item["question_id"] in saved_ids, item["question_id"] in liked_ids) for item in questions]
+
+
+@api_router.post("/questions/{question_id}/like")
+async def like_question(question_id: str, user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, Any]:
+    question = await db.questions.find_one({"question_id": question_id}, {"_id": 0, "question_id": 1, "author_id": 1, "text": 1})
+    if not question:
+        raise HTTPException(status_code=404, detail="Soru bulunamadı")
+    existing = await db.question_likes.find_one({"user_id": user["user_id"], "question_id": question_id}, {"_id": 0})
+    if existing:
+        await db.question_likes.delete_one({"user_id": user["user_id"], "question_id": question_id})
+        await db.questions.update_one({"question_id": question_id}, {"$inc": {"likes": -1}})
+        liked = False
+    else:
+        await db.question_likes.insert_one({"user_id": user["user_id"], "question_id": question_id, "created_at": now_utc()})
+        await db.questions.update_one({"question_id": question_id}, {"$inc": {"likes": 1}})
+        liked = True
+        if question.get("author_id") and question["author_id"] != user["user_id"]:
+            snippet = (question.get("text") or "")[:40]
+            await create_notification(question["author_id"], "like", f"{user['name']} sorunu beğendi", f'"{snippet}…"', "heart", question_id)
+    fresh = await db.questions.find_one({"question_id": question_id}, {"_id": 0, "likes": 1})
+    return {"liked": liked, "likes": max(0, int(fresh.get("likes", 0)))}
 
 
 @api_router.post("/questions/{question_id}/answer")
@@ -1030,6 +1060,10 @@ async def create_question(payload: QuestionCreate, user: Dict[str, Any] = Depend
         "created_at": now_utc(),
     }
     await db.questions.insert_one(question.copy())
+    # Takipçilere yeni soru bildirimi
+    followers = await db.follows.find({"following_id": user["user_id"]}, {"_id": 0, "follower_id": 1}).to_list(500)
+    for f in followers:
+        await create_notification(f["follower_id"], "new_question", f"{user['name']} yeni bir soru paylaştı", (payload.text or "")[:60], "sparkles-outline", question["question_id"])
     return question_public(question)
 
 
@@ -1058,13 +1092,44 @@ async def my_questions_list(user: Dict[str, Any] = Depends(get_current_user)) ->
 
 
 @api_router.get("/users/{user_id}/profile")
-async def user_public_profile(user_id: str) -> Dict[str, Any]:
+async def user_public_profile(user_id: str, request: Request) -> Dict[str, Any]:
     """Başka bir kullanıcının herkese açık profili + paylaştığı sorular."""
     target = await db.users.find_one({"user_id": user_id}, {"_id": 0})
     if not target:
         raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
     rows = await db.questions.find({"author_id": user_id}, {"_id": 0}).sort("created_at", -1).to_list(300)
-    return {"user": public_user(target), "questions": [question_public(q, False) for q in rows]}
+    viewer = await get_optional_user(request)
+    stats = await follow_stats(user_id, viewer["user_id"] if viewer else None)
+    questions_count = await db.questions.count_documents({"author_id": user_id})
+    return {"user": {**public_user(target), **stats, "questions_count": questions_count}, "questions": [question_public(q, False) for q in rows]}
+
+
+async def follow_stats(user_id: str, viewer_id: Optional[str]) -> Dict[str, Any]:
+    followers = await db.follows.count_documents({"following_id": user_id})
+    following = await db.follows.count_documents({"follower_id": user_id})
+    is_following = False
+    if viewer_id and viewer_id != user_id:
+        is_following = bool(await db.follows.find_one({"follower_id": viewer_id, "following_id": user_id}, {"_id": 0}))
+    return {"followers_count": followers, "following_count": following, "is_following": is_following}
+
+
+@api_router.post("/users/{user_id}/follow")
+async def toggle_follow(user_id: str, user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, Any]:
+    if user_id == user["user_id"]:
+        raise HTTPException(status_code=400, detail="Kendini takip edemezsin")
+    target = await db.users.find_one({"user_id": user_id}, {"_id": 0, "user_id": 1})
+    if not target:
+        raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
+    existing = await db.follows.find_one({"follower_id": user["user_id"], "following_id": user_id}, {"_id": 0})
+    if existing:
+        await db.follows.delete_one({"follower_id": user["user_id"], "following_id": user_id})
+        following = False
+    else:
+        await db.follows.insert_one({"follower_id": user["user_id"], "following_id": user_id, "created_at": now_utc()})
+        following = True
+        await create_notification(user_id, "follow", f"{user['name']} seni takip etmeye başladı", "Profiline göz at", "person-add", user["user_id"])
+    stats = await follow_stats(user_id, user["user_id"])
+    return {"following": following, **stats}
 
 
 # ---------- Messaging ----------
@@ -1122,7 +1187,7 @@ async def people(user: Dict[str, Any] = Depends(get_current_user)) -> List[Dict[
 
 # ---------- Notifications ----------
 
-NOTIFICATION_TYPES = {"points", "rank_up", "comment", "share", "system"}
+NOTIFICATION_TYPES = {"points", "rank_up", "comment", "share", "system", "like", "follow", "new_question"}
 
 
 async def create_notification(

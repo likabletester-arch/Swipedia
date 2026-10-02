@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { fileUrl } from "@/src/api";
+import { stockSource } from "@/src/stock-avatars";
 import { useTheme } from "@/src/theme";
 
 // Uygulama logosu = doğrulanmış admin hesabının profil fotoğrafı.
@@ -11,9 +12,10 @@ const APP_LOGO = require("@/assets/images/icon.png");
 export function UserAvatar({ avatar, name, size = 38, radius }: { avatar?: string; name: string; size?: number; radius?: number }) {
   const { colors } = useTheme();
   const borderRadius = radius ?? Math.round(size * 0.36);
+  const stock = stockSource(avatar);
   const isLogo = avatar === "app_logo";
   const isHttp = !!avatar && avatar.startsWith("http");
-  const isPath = !!avatar && !isLogo && !isHttp;
+  const isPath = !!avatar && !isLogo && !isHttp && !stock;
   const [resolved, setResolved] = useState<string | null>(isHttp ? avatar! : null);
 
   useEffect(() => {
@@ -30,6 +32,9 @@ export function UserAvatar({ avatar, name, size = 38, radius }: { avatar?: strin
 
   if (isLogo) {
     return <Image source={APP_LOGO} style={{ width: size, height: size, borderRadius }} contentFit="cover" />;
+  }
+  if (stock) {
+    return <Image source={stock} style={{ width: size, height: size, borderRadius }} contentFit="cover" />;
   }
   if (resolved) {
     return <Image source={{ uri: resolved }} style={{ width: size, height: size, borderRadius }} contentFit="cover" />;

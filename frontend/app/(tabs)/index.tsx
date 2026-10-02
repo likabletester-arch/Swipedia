@@ -3,7 +3,7 @@ import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -30,6 +30,7 @@ import {
   fetchUnreadCount,
   fileUrl,
   sendMessage,
+  toggleLike,
   toggleSave,
   type Comment,
   type Person,
@@ -38,11 +39,15 @@ import {
 import { useAuth } from "@/src/auth";
 import { ToastView, useToast } from "@/src/components/toast";
 import { categoryIcon } from "@/src/categories";
+import { ExpandingOverlay, type Rect } from "@/src/components/expanding-overlay";
+import { SearchPanel } from "@/src/components/search-panel";
 import { UserAvatar } from "@/src/components/user-avatar";
 import { useI18n } from "@/src/i18n";
 import { usesNativeTabs } from "@/src/navigation";
 import { formatPoints, rankFor, rankName } from "@/src/ranks";
 import { makeStyles, useTheme } from "@/src/theme";
+import RanksScreen from "@/app/(tabs)/ranks";
+import NotificationsScreen from "@/app/notifications";
 
 type AnswerResult = { index: number; correct: boolean; correctIndex?: number; explanation?: string };
 
@@ -71,6 +76,20 @@ export default function FeedScreen() {
   const [people, setPeople] = useState<Person[]>([]);
   const [note, setNote] = useState("");
   const [unreadCount, setUnreadCount] = useState(0);
+
+  // Üst menü genişleyen overlay: arama / rütbe / bildirimler
+  const [panel, setPanel] = useState<null | "search" | "rank" | "notif">(null);
+  const [panelRect, setPanelRect] = useState<Rect>({ x: 0, y: 0, width: 0, height: 0 });
+  const searchRef = useRef<View>(null);
+  const rankRef = useRef<View>(null);
+  const notifRef = useRef<View>(null);
+
+  const openPanel = (mode: "search" | "rank" | "notif", ref: RefObject<View>) => {
+    ref.current?.measureInWindow((x, y, width, height) => {
+      setPanelRect({ x, y, width, height });
+      setPanel(mode);
+    });
+  };
 
   // Doğru cevap puan bildirimi: aşağıdan yukarı kayar, 3 sn durur, kaybolur.
   const popupOffset = useSharedValue(140);
@@ -143,6 +162,20 @@ export default function FeedScreen() {
       setQuestions((old) => old.map((item) => (item.question_id === question.question_id ? { ...item, saved: result.saved, saves_count: Math.max(0, item.saves_count + (result.saved ? 1 : -1)) } : item)));
       toast.show(result.saved ? t("feed.saved") : t("feed.unsaved"));
     } catch {
+      toast.show(t("feed.loginToSave"));
+    }
+  };
+
+  const like = async (question: Question) => {
+    // İyimser güncelleme
+    setQuestions((old) => old.map((item) => (item.question_id === question.question_id ? { ...item, liked: !item.liked, likes: Math.max(0, item.likes + (item.liked ? -1 : 1)) } : item)));
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    try {
+      const result = await toggleLike(question.question_id);
+      setQuestions((old) => old.map((item) => (item.question_id === question.question_id ? { ...item, liked: result.liked, likes: result.likes } : item)));
+    } catch {
+      // başarısızsa geri al
+      setQuestions((old) => old.map((item) => (item.question_id === question.question_id ? { ...item, liked: question.liked, likes: question.likes } : item)));
       toast.show(t("feed.loginToSave"));
     }
   };
@@ -251,6 +284,7 @@ export default function FeedScreen() {
               bottomChrome={bottomChrome}
               onAnswer={(index) => answer(item, index)}
               onSave={() => save(item)}
+              onLike={() => like(item)}
               onComments={() => openComments(item)}
               onShare={() => openShare(item)}
             />
@@ -260,31 +294,60 @@ export default function FeedScreen() {
 
       <LinearGradient colors={["rgba(18,14,11,0.5)", "rgba(18,14,11,0)"]} style={[styles.headerScrim, { height: insets.top + 84 }]} pointerEvents="none" />
       <View style={[styles.header, { paddingTop: insets.top + 10 }]} pointerEvents="box-none" testID="feed-header">
-        {user.is_admin ? <View /> : (
-        <Pressable testID="rank-badge" onPress={() => router.navigate("/(tabs)/ranks")} style={({ pressed }) => [styles.rankBadge, pressed && { opacity: 0.85 }]}>
+        <View style={styles.headerSide}>
+          <Pressable ref={searchRef} collapsable={false} testID="header-search" onPress={() => openPanel("search", searchRef)} style={({ pressed }) => [styles.searchBox, pressed && { opacity: 0.85 }]}>
+            <Ionicons name="search" size={16} color={colors.onSurfaceInverse} />
+            <Text style={styles.searchBoxText}>{t("search.placeholder")}</Text>
+          </Pressable>
+        </View>
+
+        <Pressable ref={rankRef} collapsable={false} testID="rank-badge" onPress={() => openPanel("rank", rankRef)} style={({ pressed }) => [styles.rankBadge, pressed && { opacity: 0.85 }]}>
           <View style={[styles.rankIconRing, { borderColor: rank.color }]}>
             <View style={[styles.rankIcon, { backgroundColor: rank.color }]}>
-              <Ionicons name={rank.icon} size={12} color="#FFFFFF" />
+              <Ionicons name={rank.icon} size={15} color="#FFFFFF" />
             </View>
           </View>
-          <View>
-            <Text style={styles.rankName}>{rankName(rank, lang)}</Text>
-            <View style={styles.rankPointsRow}>
-              <Ionicons name="sparkles" size={8} color={colors.brandSecondary} />
-              <Text style={styles.rankPoints}>{formatPoints(user.points)} {t("common.points")}</Text>
-            </View>
-          </View>
-        </Pressable>
-        )}
-        <Pressable testID="feed-notifications-button" onPress={() => router.push("/notifications")} style={({ pressed }) => [styles.headerIconButton, pressed && { opacity: 0.75 }]}>
-          <Ionicons name="notifications-outline" size={18} color={colors.onSurfaceInverse} />
-          {unreadCount > 0 && (
-            <View style={[styles.notifBadge, { backgroundColor: colors.brandPrimary }]}>
-              <Text style={styles.notifBadgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text>
+          {user.is_admin ? (
+            <Text style={styles.rankName}>{t("ranks.title")}</Text>
+          ) : (
+            <View>
+              <Text style={styles.rankName}>{rankName(rank, lang)}</Text>
+              <View style={styles.rankPointsRow}>
+                <Ionicons name="sparkles" size={9} color={colors.brandSecondary} />
+                <Text style={styles.rankPoints}>{formatPoints(user.points)} {t("common.points")}</Text>
+              </View>
             </View>
           )}
         </Pressable>
+
+        <View style={[styles.headerSide, { alignItems: "flex-end" }]}>
+          <Pressable ref={notifRef} collapsable={false} testID="feed-notifications-button" onPress={() => openPanel("notif", notifRef)} style={({ pressed }) => [styles.notifButton, pressed && { opacity: 0.85 }]}>
+            <Ionicons name="notifications-outline" size={17} color={colors.onSurfaceInverse} />
+            <Text style={styles.notifLabel} numberOfLines={1}>{t("notif.title")}</Text>
+            {unreadCount > 0 && (
+              <View style={[styles.notifBadge, { backgroundColor: colors.brandPrimary }]}>
+                <Text style={styles.notifBadgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text>
+              </View>
+            )}
+          </Pressable>
+        </View>
       </View>
+
+      {panel === "search" && (
+        <ExpandingOverlay fromRect={panelRect} onClose={() => setPanel(null)}>
+          <SearchPanel questions={questions} onClose={() => setPanel(null)} />
+        </ExpandingOverlay>
+      )}
+      {panel === "rank" && (
+        <ExpandingOverlay fromRect={panelRect} onClose={() => setPanel(null)}>
+          <RanksScreen />
+        </ExpandingOverlay>
+      )}
+      {panel === "notif" && (
+        <ExpandingOverlay fromRect={panelRect} onClose={() => { setPanel(null); fetchUnreadCount().then((r) => setUnreadCount(r.count)).catch(() => {}); }}>
+          <NotificationsScreen />
+        </ExpandingOverlay>
+      )}
 
       <Animated.View
         testID="points-popup"
@@ -489,6 +552,7 @@ function QuizCard({
   bottomChrome,
   onAnswer,
   onSave,
+  onLike,
   onComments,
   onShare,
 }: {
@@ -498,6 +562,7 @@ function QuizCard({
   bottomChrome: number;
   onAnswer: (index: number) => void;
   onSave: () => void;
+  onLike: () => void;
   onComments: () => void;
   onShare: () => void;
 }) {
@@ -545,6 +610,10 @@ function QuizCard({
       </Pressable>
 
       <View style={[styles.actionRail, { bottom: bottomChrome + 90 }]} pointerEvents="box-none">
+        <Pressable testID="like-button" onPress={onLike} style={({ pressed }) => [styles.railButton, pressed && { opacity: 0.7 }]}>
+          <Ionicons name={question.liked ? "heart" : "heart-outline"} size={21} color={question.liked ? colors.error : colors.onSurfaceInverse} />
+        </Pressable>
+        <Text style={styles.railLabel}>{question.likes}</Text>
         <Pressable testID="comments-button" onPress={onComments} style={({ pressed }) => [styles.railButton, pressed && { opacity: 0.7 }]}>
           <Ionicons name="chatbubble-ellipses-outline" size={19} color={colors.onSurfaceInverse} />
         </Pressable>
@@ -571,15 +640,19 @@ const useStyles = makeStyles((colors) => StyleSheet.create({
   retryButton: { marginTop: 14, minHeight: 44, borderRadius: 13, backgroundColor: colors.brandPrimary, alignItems: "center", justifyContent: "center", paddingHorizontal: 20 },
   retryText: { color: colors.onBrandPrimary, fontWeight: "800", fontSize: 11 },
   headerScrim: { position: "absolute", top: 0, left: 0, right: 0 },
-  header: { position: "absolute", top: 0, left: 0, right: 0, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  rankBadge: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(18,14,11,0.45)", borderWidth: 1, borderColor: "rgba(255,255,255,0.2)", borderRadius: 999, paddingVertical: 5, paddingLeft: 5, paddingRight: 12 },
-  rankIconRing: { width: 30, height: 30, borderRadius: 15, borderWidth: 2, alignItems: "center", justifyContent: "center" },
-  rankIcon: { width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center" },
-  rankName: { color: colors.onSurfaceInverse, fontSize: 11, fontWeight: "800" },
+  header: { position: "absolute", top: 0, left: 0, right: 0, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  headerSide: { flex: 1, justifyContent: "center" },
+  searchBox: { flexDirection: "row", alignItems: "center", gap: 7, height: 40, paddingHorizontal: 12, borderRadius: 999, backgroundColor: "rgba(18,14,11,0.45)", borderWidth: 1, borderColor: "rgba(255,255,255,0.2)" },
+  searchBoxText: { color: colors.onSurfaceInverse, opacity: 0.6, fontSize: 12, fontWeight: "600" },
+  rankBadge: { flexDirection: "row", alignItems: "center", gap: 9, backgroundColor: "rgba(18,14,11,0.45)", borderWidth: 1, borderColor: "rgba(255,255,255,0.2)", borderRadius: 999, paddingVertical: 7, paddingLeft: 7, paddingRight: 15 },
+  rankIconRing: { width: 38, height: 38, borderRadius: 19, borderWidth: 2, alignItems: "center", justifyContent: "center" },
+  rankIcon: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  rankName: { color: colors.onSurfaceInverse, fontSize: 13, fontWeight: "800" },
   rankPointsRow: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 1 },
-  rankPoints: { color: colors.onSurfaceInverse, opacity: 0.78, fontSize: 9, fontWeight: "700" },
-  headerIconButton: { width: 40, height: 40, borderRadius: 14, backgroundColor: "rgba(18,14,11,0.45)", borderWidth: 1, borderColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
-  notifBadge: { position: "absolute", top: 4, right: 4, minWidth: 16, height: 16, borderRadius: 8, alignItems: "center", justifyContent: "center", paddingHorizontal: 3 },
+  rankPoints: { color: colors.onSurfaceInverse, opacity: 0.78, fontSize: 10, fontWeight: "700" },
+  notifButton: { flexDirection: "row", alignItems: "center", gap: 6, height: 40, paddingHorizontal: 12, borderRadius: 999, backgroundColor: "rgba(18,14,11,0.45)", borderWidth: 1, borderColor: "rgba(255,255,255,0.2)" },
+  notifLabel: { color: colors.onSurfaceInverse, fontSize: 11, fontWeight: "800" },
+  notifBadge: { position: "absolute", top: 2, right: 2, minWidth: 16, height: 16, borderRadius: 8, alignItems: "center", justifyContent: "center", paddingHorizontal: 3 },
   notifBadgeText: { color: "#FFFFFF", fontSize: 8, fontWeight: "900" },
   pointsPopup: { position: "absolute", left: 16, right: 16, borderRadius: 18, padding: 13, flexDirection: "row", alignItems: "center", gap: 10, shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 16, elevation: 10 },
   pointsPopupIcon: { width: 32, height: 32, borderRadius: 12, alignItems: "center", justifyContent: "center" },

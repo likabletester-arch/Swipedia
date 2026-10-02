@@ -15,6 +15,7 @@ import { fetchMyQuestions, fetchSavedQuestions, type Question } from "@/src/api"
 import { useAuth } from "@/src/auth";
 import { categoryIcon } from "@/src/categories";
 import { FadeSlideIn } from "@/src/components/fade-slide-in";
+import { CreatorRankCard } from "@/src/components/creator-rank-card";
 import { UserAvatar } from "@/src/components/user-avatar";
 import { useI18n } from "@/src/i18n";
 import { usesNativeTabs } from "@/src/navigation";
@@ -84,6 +85,7 @@ export default function ProfileScreen() {
             {!!user.verified && <Ionicons name="checkmark-circle" size={14} color={colors.brandPrimary} testID="profile-verified-badge" />}
           </View>
           {!!user.username && <Text style={styles.profileUsername} testID="profile-username">@{user.username}</Text>}
+          {!!user.bio && <Text style={styles.bio} testID="profile-bio">{user.bio}</Text>}
           {!user.is_admin && (
             <Pressable testID="profile-rank-chip" onPress={() => router.navigate("/(tabs)/ranks")} style={[styles.rankChip, { borderColor: rank.color }]}>
               <View style={[styles.rankChipIcon, { backgroundColor: rank.color }]}>
@@ -92,6 +94,12 @@ export default function ProfileScreen() {
               <Text style={[styles.rankChipText, { color: rank.color }]}>{rankName(rank, lang)}</Text>
             </Pressable>
           )}
+          <View style={styles.followRow}>
+            <View style={styles.followCell}><Text style={styles.followNum} testID="profile-followers-count">{user.followers_count ?? 0}</Text><Text style={styles.followLbl}>{t("profile.followers")}</Text></View>
+            <View style={styles.followDivider} />
+            <View style={styles.followCell}><Text style={styles.followNum}>{user.following_count ?? 0}</Text><Text style={styles.followLbl}>{t("profile.following")}</Text></View>
+          </View>
+          {!user.is_admin && <CreatorRankCard count={Math.max(user.questions_count ?? 0, shared.length)} />}
           <View style={[styles.profileStats, user.is_admin && { marginTop: 14 }]}>
             {!user.is_admin && (
               <View style={styles.profileStat}><Text style={styles.profileStatNumber} testID="profile-points">{formatPoints(user.points)}</Text><Text style={styles.profileStatLabel}>{t("profile.points")}</Text></View>
@@ -156,6 +164,12 @@ const useStyles = makeStyles((colors) => StyleSheet.create({
   profileTop: { alignItems: "center", paddingVertical: 12 },
   profileName: { color: colors.onSurface, fontSize: 16, fontWeight: "900" },
   profileUsername: { color: colors.muted, fontSize: 10, fontWeight: "700", marginTop: 3 },
+  bio: { color: colors.onSurfaceSecondary, fontSize: 12, lineHeight: 17, textAlign: "center", marginTop: 8, paddingHorizontal: 20 },
+  followRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 14, marginTop: 12 },
+  followCell: { alignItems: "center" },
+  followNum: { color: colors.onSurface, fontSize: 15, fontWeight: "900" },
+  followLbl: { color: colors.muted, fontSize: 9, fontWeight: "700", marginTop: 1 },
+  followDivider: { width: 1, height: 24, backgroundColor: colors.divider },
   rankChip: { flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 999, borderWidth: 1.5, paddingHorizontal: 11, paddingVertical: 6, marginTop: 10 },
   rankChipIcon: { width: 20, height: 20, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   rankChipText: { fontSize: 10, fontWeight: "900" },

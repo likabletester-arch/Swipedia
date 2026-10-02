@@ -101,45 +101,45 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
-## Session: Verified registration + account editing + guest gate (June 2026)
+## Session: Faz 2 — stok avatar + bio + takip + beğeni (Ekim 2026)
 backend:
-  - task: "Two-step verified registration (phone mandatory + email OTP)"
+  - task: "Soru beğeni (like) toggle + feed liked flag"
     file: "/app/backend/server.py"
     implemented: true
     needs_retesting: true
     status_history:
       - working: "NA"
-        comment: "POST /api/auth/register/request-code (email,phone,password,name) sends 6-digit OTP via Emergent Resend; POST /api/auth/register/verify creates the user. Codes hashed (HMAC) in verification_codes with 10min TTL and 5-attempt limit."
-  - task: "Change password / change email+phone with email OTP confirmation"
+        comment: "POST /api/questions/{id}/like toggler (question_likes koleksiyonu, likes sayacı inc/dec). /feed artık her soru için liked bool döner. Soru sahibine 'like' bildirimi."
+  - task: "Takip sistemi (follow/unfollow) + takipçi sayıları + bildirim"
     file: "/app/backend/server.py"
     implemented: true
     needs_retesting: true
     status_history:
       - working: "NA"
-        comment: "POST /api/users/me/password (current+new). POST /api/users/me/request-change-code {field} sends OTP to CURRENT email. POST /api/users/me/confirm-change {field,code} applies change. PATCH /api/users/me now accepts avatar."
-  - task: "Guest answered_count in answer response"
+        comment: "POST /api/users/{id}/follow toggler (follows koleksiyonu). /users/{id}/profile ve /auth/me followers_count, following_count, is_following döner. Takip edince hedefe bildirim; takip edilen soru paylaşınca takipçilere 'new_question' bildirimi. Kendini takip 400, olmayan kullanıcı 404."
+  - task: "Profil biyografisi (PATCH /users/me bio)"
     file: "/app/backend/server.py"
     implemented: true
     needs_retesting: true
     status_history:
       - working: "NA"
-        comment: "POST /api/questions/{id}/answer returns answered_count (total answers for the user) for guest 5-question gating. public_user now returns is_guest, phone, email_verified."
+        comment: "ProfileUpdate.bio zaten vardı; public_user bio default '' yapıldı. PATCH /users/me bio kaydeder."
 frontend:
-  - task: "Register UI with phone + OTP code step; settings account editing; guest gate modal"
-    file: "/app/frontend/app/login.tsx, /app/frontend/app/settings.tsx, /app/frontend/app/(tabs)/index.tsx"
+  - task: "Feed beğeni butonu + stok avatar seçici + bio alanı + takip butonu"
+    file: "/app/frontend/app/(tabs)/index.tsx, /app/frontend/app/settings.tsx, /app/frontend/app/user/[id].tsx, /app/frontend/app/(tabs)/profile.tsx"
     implemented: true
     needs_retesting: false
     status_history:
       - working: "NA"
-        comment: "Frontend only; smoke-tested via screenshot. Backend is the focus of this test run."
+        comment: "Smoke test (screenshot) ile doğrulandı: feed'de kalp butonu yorumun üstünde; ayarlarda Erkek/Kadın sekmeli stok avatar modalı + galeriden yükle; bio girişi; başka profilde Takip Et butonu + takipçi/takip sayıları."
 metadata:
   created_by: "main_agent"
 test_plan:
   current_focus:
-    - "Two-step verified registration (phone mandatory + email OTP)"
-    - "Change password / change email+phone with email OTP confirmation"
-    - "Guest answered_count in answer response"
+    - "Soru beğeni (like) toggle + feed liked flag"
+    - "Takip sistemi (follow/unfollow) + takipçi sayıları + bildirim"
+    - "Profil biyografisi (PATCH /users/me bio)"
   stuck_tasks: []
 agent_communication:
   - agent: "main"
-    message: "Please test NEW backend endpoints only. OTP codes are emailed (cannot read them in tests); verify validation/flow behavior: request-code returns ok for unused email and 409 for existing; verify with wrong code returns 400; password change requires correct current password (403 otherwise); request-change-code requires a real (non-guest) email and rejects taken emails with 409; answer endpoint returns answered_count. Do NOT attempt to read OTP codes from email. Existing login/guest/feed should still work."
+    message: "Faz 2 ikinci parti test. Test credentials: swipedia-test@example.com / secret123 (standart kullanıcı), official@swipedia.app / swipedia123 (admin, 750+ soru). Backend testleri: (1) POST /questions/{id}/like iki kez çağırınca liked true->false ve likes 1->0; /feed liked alanı doğru. (2) POST /users/{id}/follow iki kez çağırınca following true->false; /users/{id}/profile followers_count ve is_following doğru; /auth/me following_count doğru; kendini takip 400. (3) PATCH /users/me {bio} kaydeder, /auth/me bio döner. (4) /auth/me ve /users/{id}/profile 'questions_count' döner (içerik üretici rank için paylaşılan soru sayısı); admin için >=750 olmalı. Mevcut login/guest/feed/save/comment regresyon olmamalı. OTP/email kodlarını okumaya çalışma."
