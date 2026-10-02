@@ -248,6 +248,12 @@ export default function SettingsScreen() {
             </Pressable>
           ))}
         </View>
+
+        <View style={styles.legalLinks}>
+          <Pressable testID="settings-terms-link" onPress={() => router.push("/legal?doc=terms")}><Text style={styles.legalLink}>{t("legal.terms")}</Text></Pressable>
+          <Text style={styles.legalSep}>|</Text>
+          <Pressable testID="settings-privacy-link" onPress={() => router.push("/legal?doc=privacy")}><Text style={styles.legalLink}>{t("legal.privacy")}</Text></Pressable>
+        </View>
       </KeyboardAwareScrollView>
 
       {/* Değişiklik modalı */}
@@ -376,4 +382,7 @@ const useStyles = makeStyles((colors) => StyleSheet.create({
   changeError: { color: colors.error, fontSize: 10, marginBottom: 8 },
   resendButton: { minHeight: 42, alignItems: "center", justifyContent: "center", marginTop: 4 },
   resendText: { color: colors.brandPrimary, fontSize: 11, fontWeight: "800" },
+  legalLinks: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 24 },
+  legalLink: { color: colors.onSurfaceSecondary, fontSize: 11, fontWeight: "600" },
+  legalSep: { color: colors.muted, fontSize: 11 },
 }));

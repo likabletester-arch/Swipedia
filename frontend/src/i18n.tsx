@@ -222,6 +222,9 @@ const DICT: Dict = {
   "settings.changed": { tr: "Güncellendi", en: "Updated", de: "Aktualisiert", ru: "Обновлено", it: "Aggiornato", fr: "Mis à jour", ar: "تم التحديث", zh: "已更新" },
   "settings.passwordChanged": { tr: "Şifren güncellendi", en: "Password updated", de: "Passwort aktualisiert", ru: "Пароль обновлён", it: "Password aggiornata", fr: "Mot de passe mis à jour", ar: "تم تحديث كلمة المرور", zh: "密码已更新" },
   "settings.passwordMismatch": { tr: "Şifre en az 6 karakter olmalı", en: "Password must be at least 6 characters", de: "Passwort mind. 6 Zeichen", ru: "Пароль минимум 6 символов", it: "Password almeno 6 caratteri", fr: "Mot de passe min 6 caractères", ar: "كلمة المرور 6 أحرف على الأقل", zh: "密码至少6位" },
+
+  "legal.terms": { tr: "Kullanım Koşulları", en: "Terms of Service", de: "Nutzungsbedingungen", ru: "Условия использования", it: "Termini di servizio", fr: "Conditions d'utilisation", ar: "شروط الخدمة", zh: "服务条款" },
+  "legal.privacy": { tr: "Gizlilik", en: "Privacy", de: "Datenschutz", ru: "Конфиденциальность", it: "Privacy", fr: "Confidentialité", ar: "الخصوصية", zh: "隐私" },
 };
 
 function deviceLang(): Lang {
