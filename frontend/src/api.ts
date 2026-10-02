@@ -14,6 +14,8 @@ export type User = {
   phone?: string;
   is_guest?: boolean;
   is_admin?: boolean;
+  gender?: string;
+  gender_hidden?: boolean;
   email_verified?: boolean;
   verified?: boolean;
   avatar?: string;
@@ -94,8 +96,8 @@ export async function api<T>(path: string, init: RequestInit = {}, requiresAuth 
   return body as T;
 }
 
-export async function login(email: string, password: string) {
-  const result = await api<{ session_token: string; user: User }>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) });
+export async function login(identifier: string, password: string) {
+  const result = await api<{ session_token: string; user: User }>("/auth/login", { method: "POST", body: JSON.stringify({ identifier, password }) });
   await setToken(result.session_token);
   return result.user;
 }
@@ -106,8 +108,20 @@ export async function register(name: string, email: string, password: string) {
   return result.user;
 }
 
-export const requestRegisterCode = (name: string, email: string, phone: string, password: string) =>
-  api<{ ok: boolean }>("/auth/register/request-code", { method: "POST", body: JSON.stringify({ name, email, phone, password }) });
+export const requestRegisterCode = (name: string, email: string, phone: string, password: string, username?: string, gender?: string) =>
+  api<{ ok: boolean }>("/auth/register/request-code", { method: "POST", body: JSON.stringify({ name, email, phone, password, username, gender }) });
+
+export const usernameAvailable = (u: string) =>
+  api<{ available: boolean; suggestion: string }>(`/auth/username-available?u=${encodeURIComponent(u)}`);
+
+export const requestForgotCode = (email: string, username: string) =>
+  api<{ ok: boolean }>("/auth/forgot/request-code", { method: "POST", body: JSON.stringify({ email, username }) });
+
+export async function resetPassword(email: string, code: string, newPassword: string) {
+  const result = await api<{ session_token: string; user: User }>("/auth/forgot/reset", { method: "POST", body: JSON.stringify({ email, code, new_password: newPassword }) });
+  await setToken(result.session_token);
+  return result.user;
+}
 
 export async function verifyRegister(email: string, code: string) {
   const result = await api<{ session_token: string; user: User }>("/auth/register/verify", { method: "POST", body: JSON.stringify({ email, code }) });
@@ -136,7 +150,7 @@ export async function appleAuth(identityToken: string, name?: string, email?: st
   return result.user;
 }
 
-export async function updateProfile(payload: { name?: string; username?: string; avatar?: string }) {
+export async function updateProfile(payload: { name?: string; username?: string; avatar?: string; bio?: string; gender?: string; gender_hidden?: boolean }) {
   const result = await api<{ user: User }>("/users/me", { method: "PATCH", body: JSON.stringify(payload) }, true);
   return result.user;
 }
@@ -165,6 +179,8 @@ export const toggleSave = (questionId: string) => api<{ saved: boolean }>(`/ques
 export const createQuestion = (payload: { category: string; text: string; options: string[]; correct_index: number; explanation: string; difficulty: string; background?: string | null }) =>
   api<Question>("/questions", { method: "POST", body: JSON.stringify(payload) }, true);
 export const fetchLeaderboard = () => api<Leader[]>("/leaderboard");
+export const registerPush = (user_id: string, platform: string, device_token: string) =>
+  api<{ status: string }>("/register-push", { method: "POST", body: JSON.stringify({ user_id, platform, device_token }) });
 export const fetchSavedQuestions = () => api<Question[]>("/saved-questions", {}, true);
 export const fetchMyQuestions = () => api<Question[]>("/my-questions", {}, true);
 export const fetchPeople = () => api<Person[]>("/people", {}, true);

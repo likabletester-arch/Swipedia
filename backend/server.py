@@ -225,6 +225,30 @@ async def verify_code(ckey: str, purpose: str, code: str) -> Dict[str, Any]:
     return doc.get("payload", {})
 
 
+# --- Emergent yönetimli Push Bildirimleri (SuprSend relay) ---
+PUSH_BASE_URL = "https://integrations.emergentagent.com"
+PUSH_KEY = os.environ.get("EMERGENT_PUSH_KEY", "placeholder")
+_push_client = httpx.AsyncClient(base_url=PUSH_BASE_URL, headers={"X-Push-Key": PUSH_KEY}, timeout=10.0)
+
+
+class RegisterPushBody(BaseModel):
+    user_id: str
+    platform: str
+    device_token: str
+
+
+async def send_push(recipients: List[str], data: Dict[str, Any], idempotency_key: Optional[str] = None) -> None:
+    if not recipients:
+        return
+    if "title" not in data or "message" not in data:
+        raise ValueError("data must include title and message")
+    payload: Dict[str, Any] = {"recipients": recipients[:100], "data": data}
+    if idempotency_key:
+        payload["$idempotency_key"] = idempotency_key
+    resp = await _push_client.post("/api/v1/push/trigger", json=payload)
+    resp.raise_for_status()
+
+
 # --- Points ---
 # Rütbe yükseldikçe 1 puan için gereken doğru cevap sayısı artar.
 DIFFICULTIES = {"kolay", "orta", "zor", "uzman"}
@@ -257,6 +281,20 @@ async def unique_username(base: str) -> str:
     return candidate
 
 
+_SPECIAL_CHARS = set("!@#$%^&*()_+-=[]{};:,.<>?/|~`\"'\\")
+
+
+def validate_password(pw: str) -> None:
+    ok = (
+        len(pw) >= 8
+        and any(c.isalpha() for c in pw)
+        and any(c.isdigit() for c in pw)
+        and any(c in _SPECIAL_CHARS for c in pw)
+    )
+    if not ok:
+        raise HTTPException(status_code=422, detail="Şifre en az 8 karakter olmalı; harf, rakam ve özel karakter içermeli.")
+
+
 def now_utc() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -271,6 +309,8 @@ def public_user(user: Dict[str, Any]) -> Dict[str, Any]:
         "phone": user.get("phone", ""),
         "is_guest": user.get("provider") == "guest",
         "is_admin": bool(user.get("is_admin", False)),
+        "gender": user.get("gender", ""),
+        "gender_hidden": bool(user.get("gender_hidden", False)),
         "email_verified": bool(user.get("email_verified", False)),
         "avatar": user.get("avatar", ""),
         "bio": user.get("bio", "Curious about everything."),
@@ -319,9 +359,8 @@ async def get_optional_user(request: Request) -> Optional[Dict[str, Any]]:
 
 
 class Credentials(BaseModel):
-    email: EmailStr
-    password: str = Field(min_length=6, max_length=120)
-    name: Optional[str] = Field(default=None, max_length=40)
+    identifier: str = Field(min_length=3, max_length=120)
+    password: str = Field(min_length=1, max_length=120)
 
 
 class GoogleSession(BaseModel):
@@ -342,13 +381,29 @@ class ProfileUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=2, max_length=40)
     username: Optional[str] = Field(default=None, min_length=3, max_length=20)
     avatar: Optional[str] = Field(default=None, max_length=300)
+    bio: Optional[str] = Field(default=None, max_length=300)
+    gender: Optional[str] = Field(default=None, max_length=10)
+    gender_hidden: Optional[bool] = None
 
 
 class RegisterRequest(BaseModel):
     email: EmailStr
     phone: str = Field(min_length=7, max_length=20)
-    password: str = Field(min_length=6, max_length=120)
+    password: str = Field(min_length=8, max_length=120)
     name: Optional[str] = Field(default=None, max_length=40)
+    username: Optional[str] = Field(default=None, max_length=20)
+    gender: Optional[str] = Field(default=None, max_length=10)
+
+
+class ForgotRequest(BaseModel):
+    email: EmailStr
+    username: str = Field(min_length=3, max_length=20)
+
+
+class ForgotReset(BaseModel):
+    email: EmailStr
+    code: str = Field(pattern=r"^\d{6}$")
+    new_password: str = Field(min_length=8, max_length=120)
 
 
 class RegisterVerify(BaseModel):
@@ -358,7 +413,7 @@ class RegisterVerify(BaseModel):
 
 class ChangePassword(BaseModel):
     current_password: str
-    new_password: str = Field(min_length=6, max_length=120)
+    new_password: str = Field(min_length=8, max_length=120)
 
 
 class ContactChangeRequest(BaseModel):
@@ -571,17 +626,37 @@ async def register(credentials: Credentials) -> Dict[str, Any]:
 @api_router.post("/auth/register/request-code")
 async def register_request_code(payload: RegisterRequest) -> Dict[str, Any]:
     email = str(payload.email).lower()
+    validate_password(payload.password)
     if await db.users.find_one({"email": email}, {"_id": 0}):
         raise HTTPException(status_code=409, detail="Bu e-posta zaten kayıtlı")
+    if payload.username:
+        uname = slugify_username(payload.username)
+        if len(uname) < 3:
+            raise HTTPException(status_code=422, detail="Kullanıcı adı en az 3 karakter olmalı (a-z, 0-9, _)")
+        if await db.users.find_one({"username": uname}, {"_id": 0}):
+            raise HTTPException(status_code=409, detail="Bu kullanıcı adı alınmış")
+    else:
+        uname = await unique_username(payload.name or email.split("@")[0])
     phone = re.sub(r"\s+", "", payload.phone)
     data = {
         "email": email,
         "phone": phone,
         "name": payload.name or email.split("@")[0].title(),
+        "username": uname,
+        "gender": payload.gender or "",
         "password_hash": bcrypt.hashpw(payload.password.encode(), bcrypt.gensalt()).decode(),
     }
     await send_verification_code(email, "register", payload=data)
     return {"ok": True}
+
+
+@api_router.get("/auth/username-available")
+async def username_available(u: str) -> Dict[str, Any]:
+    uname = slugify_username(u)
+    if len(uname) < 3:
+        return {"available": False, "suggestion": await unique_username(u or "merakli")}
+    taken = await db.users.find_one({"username": uname}, {"_id": 0})
+    return {"available": not taken, "suggestion": uname if not taken else await unique_username(uname)}
 
 
 @api_router.post("/auth/register/verify")
@@ -590,12 +665,16 @@ async def register_verify(payload: RegisterVerify) -> Dict[str, Any]:
     data = await verify_code(email, "register", payload.code)
     if await db.users.find_one({"email": email}, {"_id": 0}):
         raise HTTPException(status_code=409, detail="Bu e-posta zaten kayıtlı")
+    uname = data.get("username") or await unique_username(email.split("@")[0])
+    if await db.users.find_one({"username": uname}, {"_id": 0}):
+        uname = await unique_username(uname)
     user = {
         "user_id": f"user_{uuid.uuid4().hex[:12]}",
         "email": data.get("email", email),
         "phone": data.get("phone", ""),
         "name": data.get("name") or email.split("@")[0].title(),
-        "username": await unique_username(email.split("@")[0]),
+        "username": uname,
+        "gender": data.get("gender", ""),
         "password_hash": data.get("password_hash", ""),
         "provider": "password",
         "email_verified": True,
@@ -613,9 +692,40 @@ async def register_verify(payload: RegisterVerify) -> Dict[str, Any]:
 
 @api_router.post("/auth/login")
 async def login(credentials: Credentials) -> Dict[str, Any]:
-    user = await db.users.find_one({"email": str(credentials.email).lower()}, {"_id": 0})
+    ident = credentials.identifier.strip()
+    phone = re.sub(r"\s+", "", ident)
+    user = await db.users.find_one(
+        {"$or": [{"email": ident.lower()}, {"username": ident.lower()}, {"phone": phone}]},
+        {"_id": 0},
+    )
     if not user or not user.get("password_hash") or not bcrypt.checkpw(credentials.password.encode(), user["password_hash"].encode()):
-        raise HTTPException(status_code=401, detail="E-posta veya şifre hatalı")
+        raise HTTPException(status_code=401, detail="Giriş bilgileri hatalı")
+    return {"session_token": await create_session(user["user_id"]), "user": public_user(user)}
+
+
+@api_router.post("/auth/forgot/request-code")
+async def forgot_request_code(payload: ForgotRequest) -> Dict[str, bool]:
+    email = str(payload.email).lower()
+    uname = slugify_username(payload.username)
+    user = await db.users.find_one({"email": email, "username": uname}, {"_id": 0})
+    if not user or not user.get("password_hash"):
+        raise HTTPException(status_code=404, detail="Bu e-posta ve kullanıcı adına ait bir hesap bulunamadı")
+    await send_verification_code(email, "reset", payload={"user_id": user["user_id"]})
+    return {"ok": True}
+
+
+@api_router.post("/auth/forgot/reset")
+async def forgot_reset(payload: ForgotReset) -> Dict[str, Any]:
+    email = str(payload.email).lower()
+    validate_password(payload.new_password)
+    data = await verify_code(email, "reset", payload.code)
+    user = await db.users.find_one({"user_id": data.get("user_id", "")}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="Hesap bulunamadı")
+    await db.users.update_one(
+        {"user_id": user["user_id"]},
+        {"$set": {"password_hash": bcrypt.hashpw(payload.new_password.encode(), bcrypt.gensalt()).decode()}},
+    )
     return {"session_token": await create_session(user["user_id"]), "user": public_user(user)}
 
 
@@ -728,6 +838,12 @@ async def update_profile(payload: ProfileUpdate, user: Dict[str, Any] = Depends(
         updates["name"] = payload.name.strip()
     if payload.avatar is not None:
         updates["avatar"] = payload.avatar.strip()
+    if payload.bio is not None:
+        updates["bio"] = payload.bio.strip()
+    if payload.gender is not None:
+        updates["gender"] = payload.gender.strip()
+    if payload.gender_hidden is not None:
+        updates["gender_hidden"] = bool(payload.gender_hidden)
     if payload.username:
         uname = slugify_username(payload.username)
         if len(uname) < 3:
@@ -757,6 +873,7 @@ async def change_password(payload: ChangePassword, user: Dict[str, Any] = Depend
         raise HTTPException(status_code=400, detail="Bu hesap şifre ile giriş yapmıyor")
     if not bcrypt.checkpw(payload.current_password.encode(), user["password_hash"].encode()):
         raise HTTPException(status_code=403, detail="Mevcut şifre hatalı")
+    validate_password(payload.new_password)
     await db.users.update_one(
         {"user_id": user["user_id"]},
         {"$set": {"password_hash": bcrypt.hashpw(payload.new_password.encode(), bcrypt.gensalt()).decode()}},
@@ -1019,6 +1136,25 @@ async def create_notification(
         "created_at": now_utc().isoformat(),
     }
     await db.notifications.insert_one(doc)
+    try:
+        await send_push(
+            recipients=[user_id],
+            data={"title": title, "message": body, "action_url": "/notifications"},
+            idempotency_key=doc["notification_id"],
+        )
+    except Exception as exc:  # push asla ana akışı engellemez
+        logger.warning("Push gönderilemedi (engellemez): %s", exc)
+
+
+@api_router.post("/register-push", status_code=201)
+async def register_push(body: RegisterPushBody) -> Dict[str, str]:
+    resp = await _push_client.post("/api/v1/push/users/register", json=body.model_dump())
+    if resp.status_code == 401:
+        raise HTTPException(status_code=500, detail="EMERGENT_PUSH_KEY missing or invalid")
+    if resp.status_code >= 500:
+        raise HTTPException(status_code=502, detail="Push provider unavailable")
+    resp.raise_for_status()
+    return {"status": "registered"}
 
 
 @api_router.get("/notifications")

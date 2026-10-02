@@ -16,14 +16,23 @@ import {
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 
-import { api, appleAuth, guest, login, requestRegisterCode, setToken, verifyRegister, type User } from "@/src/api";
+import { api, appleAuth, guest, login, requestForgotCode, requestRegisterCode, resetPassword, setToken, usernameAvailable, verifyRegister, type User } from "@/src/api";
 import { useAuth } from "@/src/auth";
 import { useI18n } from "@/src/i18n";
 import { makeStyles, useTheme } from "@/src/theme";
 
 WebBrowser.maybeCompleteAuthSession();
 
-type AuthMode = "login" | "register";
+type AuthMode = "login" | "register" | "forgot";
+
+const HERO_ICONS: { name: keyof typeof Ionicons.glyphMap; color: string }[] = [
+  { name: "flask", color: "#4C9F70" },
+  { name: "time", color: "#C77B3B" },
+  { name: "calculator", color: "#5B7FB9" },
+  { name: "planet", color: "#8A6FB0" },
+  { name: "paw", color: "#D08A50" },
+  { name: "game-controller", color: "#C65B7C" },
+];
 
 export default function LoginScreen() {
   const styles = useStyles();
@@ -33,10 +42,15 @@ export default function LoginScreen() {
   const { user, ready, setUser } = useAuth();
   const [mode, setMode] = useState<AuthMode>("login");
   const [name, setName] = useState("");
+  const [identifier, setIdentifier] = useState("");
+  const [username, setUsername] = useState("");
+  const [gender, setGender] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [unameMsg, setUnameMsg] = useState("");
   const [step, setStep] = useState<"form" | "code">("form");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -86,7 +100,30 @@ export default function LoginScreen() {
     setBusy(true);
     setError("");
     try {
-      await requestRegisterCode(name.trim(), email.trim(), phone.trim(), password);
+      await requestRegisterCode(name.trim(), email.trim(), phone.trim(), password, username.trim() || undefined, gender || undefined);
+      setStep("code");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("auth.error"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const checkUsername = async () => {
+    const u = username.trim();
+    if (u.length < 3) { setUnameMsg(""); return; }
+    try {
+      const res = await usernameAvailable(u);
+      if (res.available) setUnameMsg(t("auth.unameOk"));
+      else { setUnameMsg(t("auth.unameTaken", { s: res.suggestion })); }
+    } catch { setUnameMsg(""); }
+  };
+
+  const sendForgotCode = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      await requestForgotCode(email.trim(), username.trim());
       setStep("code");
     } catch (err) {
       setError(err instanceof Error ? err.message : t("auth.error"));
@@ -99,6 +136,8 @@ export default function LoginScreen() {
     setMode(next);
     setStep("form");
     setCode("");
+    setNewPassword("");
+    setUnameMsg("");
     setError("");
   };
 
@@ -163,50 +202,83 @@ export default function LoginScreen() {
           <Text style={[styles.eyebrow, { marginTop: 34 }]}>{t("auth.tagline")}</Text>
           <Text style={styles.authTitle}>{t("auth.title")}</Text>
           <Text style={styles.authSubtitle}>{t("auth.subtitle")}</Text>
+          <View style={styles.heroIcons}>
+            {HERO_ICONS.map((it) => (
+              <View key={it.name} style={[styles.heroIcon, { backgroundColor: it.color + "22" }]}>
+                <Ionicons name={it.name} size={16} color={it.color} />
+              </View>
+            ))}
+          </View>
         </View>
         <View style={styles.authCard}>
           <View style={styles.modeRow}>
-            <Pressable testID="auth-mode-login" onPress={() => switchMode("login")} style={[styles.modeButton, mode === "login" && styles.modeButtonActive]}><Text style={[styles.modeText, mode === "login" && styles.modeTextActive]}>{t("auth.login")}</Text></Pressable>
+            <Pressable testID="auth-mode-login" onPress={() => switchMode("login")} style={[styles.modeButton, (mode === "login" || mode === "forgot") && styles.modeButtonActive]}><Text style={[styles.modeText, (mode === "login" || mode === "forgot") && styles.modeTextActive]}>{t("auth.login")}</Text></Pressable>
             <Pressable testID="auth-mode-register" onPress={() => switchMode("register")} style={[styles.modeButton, mode === "register" && styles.modeButtonActive]}><Text style={[styles.modeText, mode === "register" && styles.modeTextActive]}>{t("auth.register")}</Text></Pressable>
           </View>
 
-          {mode === "register" && step === "code" ? (
+          {step === "code" && (mode === "register" || mode === "forgot") ? (
             <>
               <Text style={styles.verifyTitle}>{t("auth.verifyTitle")}</Text>
               <Text style={styles.verifySub}>{t("auth.verifySubtitle", { email: email.trim() })}</Text>
               <TextInput testID="code-input" value={code} onChangeText={setCode} placeholder={t("auth.code")} placeholderTextColor={colors.muted} keyboardType="number-pad" maxLength={6} style={[styles.input, { textAlign: "center", letterSpacing: 8, fontSize: 18 }]} />
-              {!!error && <Text testID="auth-error-text" style={{ color: colors.error, fontSize: 10, marginBottom: 8 }}>{error}</Text>}
-              <Pressable testID="verify-submit-button" disabled={busy} onPress={() => run(() => verifyRegister(email.trim(), code.trim()))} style={({ pressed }) => [styles.primaryButton, pressed && { opacity: 0.78 }, busy && { opacity: 0.6 }]}>
-                {busy ? <ActivityIndicator color={colors.onBrandPrimary} /> : <Text style={styles.primaryButtonText}>{t("auth.verifyButton")}</Text>}
+              {mode === "forgot" && (
+                <TextInput testID="new-password-input" value={newPassword} onChangeText={setNewPassword} placeholder={t("auth.newPassword")} placeholderTextColor={colors.muted} secureTextEntry style={styles.input} />
+              )}
+              {!!error && <Text testID="auth-error-text" style={styles.errText}>{error}</Text>}
+              <Pressable testID="verify-submit-button" disabled={busy} onPress={() => run(() => mode === "forgot" ? resetPassword(email.trim(), code.trim(), newPassword) : verifyRegister(email.trim(), code.trim()))} style={({ pressed }) => [styles.primaryButton, pressed && { opacity: 0.78 }, busy && { opacity: 0.6 }]}>
+                {busy ? <ActivityIndicator color={colors.onBrandPrimary} /> : <Text style={styles.primaryButtonText}>{mode === "forgot" ? t("auth.resetButton") : t("auth.verifyButton")}</Text>}
               </Pressable>
-              <Pressable testID="resend-code-button" onPress={sendRegisterCode} disabled={busy} style={styles.guestButton}>
+              <Pressable testID="resend-code-button" onPress={mode === "forgot" ? sendForgotCode : sendRegisterCode} disabled={busy} style={styles.guestButton}>
                 <Text style={styles.guestText}>{t("auth.resend")}</Text>
               </Pressable>
+            </>
+          ) : mode === "forgot" ? (
+            <>
+              <Text style={styles.verifyTitle}>{t("auth.forgotTitle")}</Text>
+              <Text style={styles.verifySub}>{t("auth.forgotSub")}</Text>
+              <TextInput testID="forgot-email-input" value={email} onChangeText={setEmail} placeholder={t("auth.email")} placeholderTextColor={colors.muted} autoCapitalize="none" keyboardType="email-address" style={styles.input} />
+              <TextInput testID="forgot-username-input" value={username} onChangeText={setUsername} placeholder={t("settings.username")} placeholderTextColor={colors.muted} autoCapitalize="none" style={styles.input} />
+              {!!error && <Text testID="auth-error-text" style={styles.errText}>{error}</Text>}
+              <Pressable testID="auth-submit-button" disabled={busy} onPress={sendForgotCode} style={({ pressed }) => [styles.primaryButton, pressed && { opacity: 0.78 }, busy && { opacity: 0.6 }]}>
+                {busy ? <ActivityIndicator color={colors.onBrandPrimary} /> : <Text style={styles.primaryButtonText}>{t("auth.sendCode")}</Text>}
+              </Pressable>
+              <Pressable testID="forgot-back" onPress={() => switchMode("login")} style={styles.guestButton}><Text style={styles.guestText}>{t("auth.backToLogin")}</Text></Pressable>
             </>
           ) : mode === "register" ? (
             <>
               <TextInput testID="name-input" value={name} onChangeText={setName} placeholder={t("auth.name")} placeholderTextColor={colors.muted} style={styles.input} />
+              <TextInput testID="username-input" value={username} onChangeText={(v) => { setUsername(v); setUnameMsg(""); }} onBlur={checkUsername} placeholder={t("settings.username")} placeholderTextColor={colors.muted} autoCapitalize="none" style={styles.input} />
+              {!!unameMsg && <Text style={styles.unameMsg}>{unameMsg}</Text>}
               <TextInput testID="email-input" value={email} onChangeText={setEmail} placeholder={t("auth.email")} placeholderTextColor={colors.muted} autoCapitalize="none" keyboardType="email-address" style={styles.input} />
               <TextInput testID="phone-input" value={phone} onChangeText={setPhone} placeholder={t("auth.phone")} placeholderTextColor={colors.muted} keyboardType="phone-pad" style={styles.input} />
               <TextInput testID="password-input" value={password} onChangeText={setPassword} placeholder={t("auth.password")} placeholderTextColor={colors.muted} secureTextEntry style={styles.input} />
-              <Text style={styles.phoneHint}>{t("auth.phoneHint")}</Text>
-              {!!error && <Text testID="auth-error-text" style={{ color: colors.error, fontSize: 10, marginBottom: 8 }}>{error}</Text>}
+              <Text style={styles.phoneHint}>{t("auth.passwordRule")}</Text>
+              <View style={styles.genderRow}>
+                {(["erkek", "kadın"] as const).map((g) => (
+                  <Pressable key={g} testID={`gender-${g}`} onPress={() => setGender(g)} style={[styles.genderChip, gender === g && styles.genderChipActive]}>
+                    <Ionicons name={g === "erkek" ? "male" : "female"} size={14} color={gender === g ? colors.onBrandTertiary : colors.muted} />
+                    <Text style={[styles.genderText, { color: gender === g ? colors.onBrandTertiary : colors.muted }]}>{t(`auth.gender_${g === "erkek" ? "male" : "female"}`)}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              {!!error && <Text testID="auth-error-text" style={styles.errText}>{error}</Text>}
               <Pressable testID="auth-submit-button" disabled={busy} onPress={sendRegisterCode} style={({ pressed }) => [styles.primaryButton, pressed && { opacity: 0.78 }, busy && { opacity: 0.6 }]}>
-                {busy ? <ActivityIndicator color={colors.onBrandPrimary} /> : <Text style={styles.primaryButtonText}>{t("auth.sendCode")}</Text>}
+                {busy ? <ActivityIndicator color={colors.onBrandPrimary} /> : <><Ionicons name="person-add" size={15} color={colors.onBrandPrimary} /><Text style={styles.primaryButtonText}>{t("auth.sendCode")}</Text></>}
               </Pressable>
             </>
           ) : (
             <>
-              <TextInput testID="email-input" value={email} onChangeText={setEmail} placeholder={t("auth.email")} placeholderTextColor={colors.muted} autoCapitalize="none" keyboardType="email-address" style={styles.input} />
+              <TextInput testID="email-input" value={identifier} onChangeText={setIdentifier} placeholder={t("auth.identifier")} placeholderTextColor={colors.muted} autoCapitalize="none" style={styles.input} />
               <TextInput testID="password-input" value={password} onChangeText={setPassword} placeholder={t("auth.password")} placeholderTextColor={colors.muted} secureTextEntry style={styles.input} />
-              {!!error && <Text testID="auth-error-text" style={{ color: colors.error, fontSize: 10, marginBottom: 8 }}>{error}</Text>}
-              <Pressable testID="auth-submit-button" disabled={busy} onPress={() => run(() => login(email, password))} style={({ pressed }) => [styles.primaryButton, pressed && { opacity: 0.78 }, busy && { opacity: 0.6 }]}>
-                {busy ? <ActivityIndicator color={colors.onBrandPrimary} /> : <Text style={styles.primaryButtonText}>{t("auth.submitLogin")}</Text>}
+              <Pressable testID="forgot-link" onPress={() => switchMode("forgot")} style={styles.forgotLinkWrap}><Text style={styles.forgotLink}>{t("auth.forgot")}</Text></Pressable>
+              {!!error && <Text testID="auth-error-text" style={styles.errText}>{error}</Text>}
+              <Pressable testID="auth-submit-button" disabled={busy} onPress={() => run(() => login(identifier.trim(), password))} style={({ pressed }) => [styles.primaryButton, pressed && { opacity: 0.78 }, busy && { opacity: 0.6 }]}>
+                {busy ? <ActivityIndicator color={colors.onBrandPrimary} /> : <><Ionicons name="log-in" size={16} color={colors.onBrandPrimary} /><Text style={styles.primaryButtonText}>{t("auth.submitLogin")}</Text></>}
               </Pressable>
             </>
           )}
 
-          {step === "form" && (
+          {step === "form" && mode !== "forgot" && (
             <>
               <Pressable testID="google-login-button" onPress={googleLogin} disabled={busy} style={({ pressed }) => [styles.googleButton, pressed && { opacity: 0.7 }]}>
                 <Ionicons name="logo-google" size={16} color={colors.error} />
@@ -224,6 +296,7 @@ export default function LoginScreen() {
                 </View>
               )}
               <Pressable testID="guest-login-button" onPress={() => run(() => guest())} style={styles.guestButton}>
+                <Ionicons name="person-outline" size={12} color={colors.brandPrimary} />
                 <Text style={styles.guestText}>{t("auth.guest")}</Text>
               </Pressable>
             </>
@@ -258,14 +331,24 @@ const useStyles = makeStyles((colors) => StyleSheet.create({
   modeTextActive: { color: colors.onSurface },
   input: { minHeight: 48, borderRadius: 13, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 13, color: colors.onSurface, fontSize: 12, marginBottom: 9 },
   phoneHint: { color: colors.muted, fontSize: 9, lineHeight: 13, marginBottom: 10, marginTop: -2 },
+  errText: { color: colors.error, fontSize: 10, marginBottom: 8 },
+  unameMsg: { color: colors.brandPrimary, fontSize: 9, marginTop: -4, marginBottom: 9 },
+  heroIcons: { flexDirection: "row", gap: 8, marginTop: 16, flexWrap: "wrap" },
+  heroIcon: { width: 34, height: 34, borderRadius: 11, alignItems: "center", justifyContent: "center" },
+  genderRow: { flexDirection: "row", gap: 9, marginBottom: 10 },
+  genderChip: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 42, borderRadius: 12, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.surface },
+  genderChipActive: { borderColor: colors.brandPrimary, backgroundColor: colors.brandTertiary },
+  genderText: { fontSize: 11, fontWeight: "800" },
+  forgotLinkWrap: { alignSelf: "flex-end", paddingVertical: 4, marginBottom: 6, marginTop: -2 },
+  forgotLink: { color: colors.brandPrimary, fontSize: 11, fontWeight: "800" },
   verifyTitle: { color: colors.onSurface, fontSize: 15, fontWeight: "900", marginBottom: 5 },
   verifySub: { color: colors.muted, fontSize: 11, lineHeight: 16, marginBottom: 12 },
-  primaryButton: { minHeight: 48, borderRadius: 15, backgroundColor: colors.brandPrimary, alignItems: "center", justifyContent: "center", paddingHorizontal: 16 },
+  primaryButton: { minHeight: 48, borderRadius: 15, backgroundColor: colors.brandPrimary, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 16 },
   primaryButtonText: { color: colors.onBrandPrimary, fontSize: 12, fontWeight: "800" },
   googleButton: { minHeight: 48, borderRadius: 15, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderStrong, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, marginTop: 9 },
   googleText: { color: colors.onSurface, fontSize: 12, fontWeight: "800" },
-  guestButton: { minHeight: 44, alignItems: "center", justifyContent: "center", marginTop: 5 },
-  guestText: { color: colors.brandPrimary, fontWeight: "800", fontSize: 11 },
+  guestButton: { minHeight: 34, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, marginTop: 7 },
+  guestText: { color: colors.brandPrimary, fontWeight: "800", fontSize: 10 },
   legal: { color: colors.muted, fontSize: 9, textAlign: "center", lineHeight: 14, marginTop: 20 },
   legalLinks: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 8 },
   legalLink: { color: colors.onSurfaceSecondary, fontSize: 11, fontWeight: "600" },

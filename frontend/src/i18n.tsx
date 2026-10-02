@@ -231,6 +231,18 @@ const DICT: Dict = {
 
   "legal.terms": { tr: "Kullanım Koşulları", en: "Terms of Service", de: "Nutzungsbedingungen", ru: "Условия использования", it: "Termini di servizio", fr: "Conditions d'utilisation", ar: "شروط الخدمة", zh: "服务条款" },
   "legal.privacy": { tr: "Gizlilik", en: "Privacy", de: "Datenschutz", ru: "Конфиденциальность", it: "Privacy", fr: "Confidentialité", ar: "الخصوصية", zh: "隐私" },
+  "auth.identifier": { tr: "E-posta, telefon veya kullanıcı adı", en: "Email, phone or username", de: "E-Mail, Telefon oder Nutzername", ru: "Почта, телефон или имя", it: "Email, telefono o username", fr: "E-mail, téléphone ou pseudo", ar: "البريد أو الهاتف أو اسم المستخدم", zh: "邮箱、手机或用户名" },
+  "auth.forgot": { tr: "Şifremi unuttum?", en: "Forgot password?", de: "Passwort vergessen?", ru: "Забыли пароль?", it: "Password dimenticata?", fr: "Mot de passe oublié ?", ar: "نسيت كلمة المرور؟", zh: "忘记密码？" },
+  "auth.forgotTitle": { tr: "Şifreni sıfırla", en: "Reset your password", de: "Passwort zurücksetzen", ru: "Сброс пароля", it: "Reimposta la password", fr: "Réinitialiser le mot de passe", ar: "إعادة تعيين كلمة المرور", zh: "重置密码" },
+  "auth.forgotSub": { tr: "E-posta ve kullanıcı adını gir; e-postana bir sıfırlama kodu gönderelim.", en: "Enter your email and username; we'll send a reset code to your email.", de: "Gib E-Mail und Nutzernamen ein; wir senden einen Code.", ru: "Введите почту и имя; мы отправим код.", it: "Inserisci email e username; invieremo un codice.", fr: "Saisis ton e-mail et pseudo ; on envoie un code.", ar: "أدخل بريدك واسم المستخدم؛ سنرسل رمزاً.", zh: "输入邮箱和用户名，我们会发送验证码。" },
+  "auth.backToLogin": { tr: "Girişe dön", en: "Back to login", de: "Zurück zum Login", ru: "Назад ко входу", it: "Torna al login", fr: "Retour à la connexion", ar: "العودة لتسجيل الدخول", zh: "返回登录" },
+  "auth.newPassword": { tr: "Yeni şifre", en: "New password", de: "Neues Passwort", ru: "Новый пароль", it: "Nuova password", fr: "Nouveau mot de passe", ar: "كلمة مرور جديدة", zh: "新密码" },
+  "auth.resetButton": { tr: "Şifreyi sıfırla", en: "Reset password", de: "Passwort zurücksetzen", ru: "Сбросить пароль", it: "Reimposta", fr: "Réinitialiser", ar: "إعادة التعيين", zh: "重置密码" },
+  "auth.passwordRule": { tr: "Şifre en az 8 karakter; harf, rakam ve özel karakter içermeli.", en: "Password: min 8 chars with a letter, number and special character.", de: "Passwort: mind. 8 Zeichen mit Buchstabe, Zahl und Sonderzeichen.", ru: "Пароль: минимум 8 символов, буква, цифра и спецсимвол.", it: "Password: min 8 caratteri con lettera, numero e speciale.", fr: "Mot de passe : min 8 caractères avec lettre, chiffre et spécial.", ar: "كلمة المرور: 8 أحرف على الأقل مع حرف ورقم ورمز خاص.", zh: "密码：至少8位，含字母、数字和特殊字符。" },
+  "auth.unameOk": { tr: "Bu kullanıcı adı uygun ✓", en: "Username available ✓", de: "Nutzername verfügbar ✓", ru: "Имя свободно ✓", it: "Username disponibile ✓", fr: "Pseudo disponible ✓", ar: "اسم المستخدم متاح ✓", zh: "用户名可用 ✓" },
+  "auth.unameTaken": { tr: "Alınmış. Öneri: {s}", en: "Taken. Try: {s}", de: "Vergeben. Vorschlag: {s}", ru: "Занято. Попробуйте: {s}", it: "Occupato. Prova: {s}", fr: "Pris. Essaie : {s}", ar: "مستخدم. جرّب: {s}", zh: "已被占用，试试：{s}" },
+  "auth.gender_male": { tr: "Erkek", en: "Male", de: "Männlich", ru: "Мужской", it: "Uomo", fr: "Homme", ar: "ذكر", zh: "男" },
+  "auth.gender_female": { tr: "Kadın", en: "Female", de: "Weiblich", ru: "Женский", it: "Donna", fr: "Femme", ar: "أنثى", zh: "女" },
 };
 
 function deviceLang(): Lang {

@@ -46,7 +46,8 @@
           "photosPermission": "Sorularına arka plan resmi eklemek için galerine eriş"
         }
       ],
-      "expo-localization"
+      "expo-localization",
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true

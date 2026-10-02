@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { clearToken, currentUser, type User } from "@/src/api";
+import { registerForPush } from "@/src/push";
 
 type AuthContextValue = {
   user: User | null;
@@ -25,6 +26,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then(setUser)
       .finally(() => setReady(true));
   }, []);
+
+  // Her uygulama açılışında / giriş yapıldığında push kaydı (token rotasyonu için güvenli upsert).
+  useEffect(() => {
+    if (user?.user_id) registerForPush(user.user_id);
+  }, [user?.user_id]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
