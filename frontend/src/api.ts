@@ -13,6 +13,7 @@ export type User = {
   email: string;
   phone?: string;
   is_guest?: boolean;
+  is_admin?: boolean;
   email_verified?: boolean;
   verified?: boolean;
   avatar?: string;

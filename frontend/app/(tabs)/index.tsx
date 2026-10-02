@@ -122,7 +122,7 @@ export default function FeedScreen() {
         setAnsweredCount(result.answered_count);
         if (user?.is_guest && result.answered_count >= 5) setTimeout(() => setGateOpen(true), 900);
       }
-      if (result.correct) {
+      if (result.correct && !user?.is_admin) {
         const sub = t("feed.popupProgress", { done: result.point_progress, rate: result.point_rate, total: formatPoints(result.user.points) });
         showPointsPopup(result.earned > 0 ? `+${result.earned} ${t("common.points")}` : t("common.correct"), sub);
       }
@@ -260,6 +260,7 @@ export default function FeedScreen() {
 
       <LinearGradient colors={["rgba(18,14,11,0.5)", "rgba(18,14,11,0)"]} style={[styles.headerScrim, { height: insets.top + 84 }]} pointerEvents="none" />
       <View style={[styles.header, { paddingTop: insets.top + 10 }]} pointerEvents="box-none" testID="feed-header">
+        {user.is_admin ? <View /> : (
         <Pressable testID="rank-badge" onPress={() => router.navigate("/(tabs)/ranks")} style={({ pressed }) => [styles.rankBadge, pressed && { opacity: 0.85 }]}>
           <View style={[styles.rankIconRing, { borderColor: rank.color }]}>
             <View style={[styles.rankIcon, { backgroundColor: rank.color }]}>
@@ -274,6 +275,7 @@ export default function FeedScreen() {
             </View>
           </View>
         </Pressable>
+        )}
         <Pressable testID="feed-notifications-button" onPress={() => router.push("/notifications")} style={({ pressed }) => [styles.headerIconButton, pressed && { opacity: 0.75 }]}>
           <Ionicons name="notifications-outline" size={18} color={colors.onSurfaceInverse} />
           {unreadCount > 0 && (

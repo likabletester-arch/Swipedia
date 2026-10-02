@@ -84,14 +84,18 @@ export default function ProfileScreen() {
             {!!user.verified && <Ionicons name="checkmark-circle" size={14} color={colors.brandPrimary} testID="profile-verified-badge" />}
           </View>
           {!!user.username && <Text style={styles.profileUsername} testID="profile-username">@{user.username}</Text>}
-          <Pressable testID="profile-rank-chip" onPress={() => router.navigate("/(tabs)/ranks")} style={[styles.rankChip, { borderColor: rank.color }]}>
-            <View style={[styles.rankChipIcon, { backgroundColor: rank.color }]}>
-              <Ionicons name={rank.icon} size={11} color="#FFFFFF" />
-            </View>
-            <Text style={[styles.rankChipText, { color: rank.color }]}>{rankName(rank, lang)}</Text>
-          </Pressable>
-          <View style={styles.profileStats}>
-            <View style={styles.profileStat}><Text style={styles.profileStatNumber} testID="profile-points">{formatPoints(user.points)}</Text><Text style={styles.profileStatLabel}>{t("profile.points")}</Text></View>
+          {!user.is_admin && (
+            <Pressable testID="profile-rank-chip" onPress={() => router.navigate("/(tabs)/ranks")} style={[styles.rankChip, { borderColor: rank.color }]}>
+              <View style={[styles.rankChipIcon, { backgroundColor: rank.color }]}>
+                <Ionicons name={rank.icon} size={11} color="#FFFFFF" />
+              </View>
+              <Text style={[styles.rankChipText, { color: rank.color }]}>{rankName(rank, lang)}</Text>
+            </Pressable>
+          )}
+          <View style={[styles.profileStats, user.is_admin && { marginTop: 14 }]}>
+            {!user.is_admin && (
+              <View style={styles.profileStat}><Text style={styles.profileStatNumber} testID="profile-points">{formatPoints(user.points)}</Text><Text style={styles.profileStatLabel}>{t("profile.points")}</Text></View>
+            )}
             <View style={styles.profileStat}><Text style={styles.profileStatNumber}>{user.correct_count}</Text><Text style={styles.profileStatLabel}>{t("profile.corrects")}</Text></View>
             <View style={styles.profileStat}><Text style={styles.profileStatNumber}>{user.saved_count}</Text><Text style={styles.profileStatLabel}>{t("profile.saved")}</Text></View>
           </View>
