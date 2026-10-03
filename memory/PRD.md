@@ -46,6 +46,10 @@ TikTok/Reels tarzı dikey kaydırmalı bir öğrenme uygulaması: kullanıcılar
 - Ayarlar ekranında yalnızca iki dil seçeneği vardır; tercih güvenli depolamada kalır. Rütbeler, yasal metinler, giriş/kayıt, Keşfet ve ayarlar iki dili destekler.
 - Doğrulama: TR↔EN-US değişimi, uygulama yeniden açılışında kalıcılık, giriş/kayıt, boş Keşfet, yasal bağlantılar ve eksik metin kontrolü mobil testten geçti.
 
+## Implemented (2026-10-03) — Swip arama içi keşfet
+- Alt navigasyonun orta etiketi `Swip` oldu. Arama overlay'i artık sunucudan küçük rastgele batch ile yalnızca yayınlanmış aktif soruları görsel keşfet kartları olarak getirir.
+- Görsel kartlar `contentFit="contain"` ile kaynaktaki oranı korur; metin yalnızca alt kısımda hafif gradient üzerinde görünür. Soru yoksa iki dilde keşfet boş durumu gösterilir.
+
 ## Prioritized Backlog
 - **P0**: Android production APK: gerçek production backend URL'sini build ortamına `EXPO_PUBLIC_BACKEND_URL` olarak tanımla, Atlas üretim bağlantısını doğrula ve APK'yı bu URL ile yeniden oluştur.
 - **P0**: Rütbe sistemi UI'ı (kullanıcı rütbe isimlerini/eşiklerini verecek — bekleniyor)

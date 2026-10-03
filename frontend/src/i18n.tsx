@@ -18,7 +18,7 @@ type Dict = Record<string, Record<string, string>>;
 const DICT: Dict = {
   "app.loading": { tr: "Swipedia açılıyor…", en: "Opening Swipedia…", de: "Swipedia öffnet…", ru: "Открываем Swipedia…", it: "Apertura di Swipedia…", fr: "Ouverture de Swipedia…", ar: "يتم فتح Swipedia…", zh: "正在打开 Swipedia…" },
 
-  "tabs.explore": { tr: "Keşfet", en: "Explore", de: "Entdecken", ru: "Лента", it: "Esplora", fr: "Explorer", ar: "استكشاف", zh: "发现" },
+  "tabs.explore": { tr: "Swip", en: "Swip", de: "", ru: "", it: "", fr: "", ar: "", zh: "" },
   "tabs.create": { tr: "Oluştur", en: "Create", de: "Erstellen", ru: "Создать", it: "Crea", fr: "Créer", ar: "إنشاء", zh: "创建" },
   "tabs.ranks": { tr: "Rütbeler", en: "Ranks", de: "Ränge", ru: "Звания", it: "Gradi", fr: "Grades", ar: "الرتب", zh: "等级" },
   "tabs.chat": { tr: "Mesaj", en: "Chat", de: "Chat", ru: "Чат", it: "Chat", fr: "Messages", ar: "الرسائل", zh: "消息" },
@@ -153,6 +153,9 @@ const DICT: Dict = {
   "search.questions": { tr: "Sorular", en: "Questions", de: "Fragen", ru: "Вопросы", it: "Domande", fr: "Questions", ar: "الأسئلة", zh: "问题" },
   "search.empty": { tr: "Sonuç bulunamadı", en: "No results", de: "Keine Ergebnisse", ru: "Ничего не найдено", it: "Nessun risultato", fr: "Aucun résultat", ar: "لا نتائج", zh: "无结果" },
   "search.hint": { tr: "Keşfetmek için yazmaya başla", en: "Start typing to explore", de: "Tippe zum Entdecken", ru: "Начните вводить для поиска", it: "Inizia a scrivere per esplorare", fr: "Commence à taper pour explorer", ar: "ابدأ الكتابة للاستكشاف", zh: "输入以开始探索" },
+  "discover.title": { tr: "Keşfet", en: "Discover", de: "", ru: "", it: "", fr: "", ar: "", zh: "" },
+  "discover.subtitle": { tr: "Topluluğun yeni sorularına göz at", en: "Browse fresh questions from the community", de: "", ru: "", it: "", fr: "", ar: "", zh: "" },
+  "discover.empty": { tr: "Henüz keşfedilecek soru yok.", en: "There are no questions to discover yet.", de: "", ru: "", it: "", fr: "", ar: "", zh: "" },
   "creator.locked": { tr: "İlk sorunu paylaş ve rank kazanmaya başla", en: "Share your first question to start earning a rank", de: "Teile deine erste Frage, um einen Rang zu verdienen", ru: "Опубликуйте первый вопрос, чтобы получить ранг", it: "Condividi la prima domanda per guadagnare un rango", fr: "Partage ta première question pour gagner un rang", ar: "شارك سؤالك الأول لتبدأ بكسب رتبة", zh: "分享你的第一个问题以获得等级" },
   "creator.shared": { tr: "paylaşılan soru", en: "shared questions", de: "geteilte Fragen", ru: "вопросов опубликовано", it: "domande condivise", fr: "questions partagées", ar: "أسئلة منشورة", zh: "个已分享问题" },
   "creator.max": { tr: "En yüksek seviye 🎉", en: "Top tier reached 🎉", de: "Höchste Stufe 🎉", ru: "Высший уровень 🎉", it: "Livello massimo 🎉", fr: "Niveau maximum 🎉", ar: "أعلى مستوى 🎉", zh: "已达最高等级 🎉" },

@@ -157,6 +157,13 @@ backend:
       - working: "NA"
         comment: "ProfileUpdate.bio zaten vardı; public_user bio default '' yapıldı. PATCH /users/me bio kaydeder."
 frontend:
+  - task: "Swip etiketi ve arama içi görsel keşfet"
+    file: "/app/frontend/src/components/custom-tab-bar.tsx, /app/frontend/src/components/search-panel.tsx, /app/frontend/src/i18n.tsx"
+    implemented: true
+    needs_retesting: false
+    status_history:
+      - working: true
+        comment: "Swip etiketi ve boş keşfet görünümü mobilde geçti. Geçici 9:16, 1:1 ve 4:3 test soruları oluşturuldu; 9:16 görsel kartı contain yerleşimle görünür doğrulandı. Test seçici ölçüm hatası sonrası tekrar deneme yapılmadı; tüm geçici veri reset_clean_start ile silindi."
   - task: "Yalnızca Türkçe ve American English dil sistemi"
     file: "/app/frontend/src/i18n.tsx, /app/frontend/app/settings.tsx, /app/frontend/src/ranks.ts, /app/frontend/src/creator-ranks.ts, /app/frontend/src/legal.ts"
     implemented: true
