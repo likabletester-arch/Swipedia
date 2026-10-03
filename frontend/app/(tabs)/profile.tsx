@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,7 +12,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { fetchMyQuestions, fetchSavedQuestions, type Question } from "@/src/api";
+import { deleteQuestion, fetchMyQuestions, fetchSavedQuestions, type Question } from "@/src/api";
 import { useAuth } from "@/src/auth";
 import { categoryIcon } from "@/src/categories";
 import { FadeSlideIn } from "@/src/components/fade-slide-in";
@@ -59,6 +60,17 @@ export default function ProfileScreen() {
     await logout();
     router.replace("/login");
   };
+  const confirmDelete = (question: Question) => Alert.alert("Soruyu sil", "Bu işlem geri alınamaz.", [
+    { text: "İptal", style: "cancel" },
+    { text: "Sil", style: "destructive", onPress: async () => {
+      try { await deleteQuestion(question.question_id); setShared((old) => old.filter((item) => item.question_id !== question.question_id)); }
+      catch { Alert.alert("Hata", "Soru silinemedi."); }
+    } },
+  ]);
+  const openDeleteMenu = (question: Question) => Alert.alert("", "", [
+    { text: "Soruyu Sil", style: "destructive", onPress: () => confirmDelete(question) },
+    { text: "İptal", style: "cancel" },
+  ]);
 
   return (
     <View style={styles.screen} testID="profile-screen">
@@ -133,6 +145,7 @@ export default function ProfileScreen() {
                       <Ionicons name={categoryIcon(q.category)} size={10} color={colors.onBrandTertiary} />
                       <Text style={styles.tileCatText} numberOfLines={1}>{q.category}</Text>
                     </View>
+                    {tab === "shared" && <Pressable testID={`question-menu-${q.question_id}`} onPress={() => openDeleteMenu(q)} style={styles.questionMenu}><Ionicons name="ellipsis-horizontal" size={16} color={colors.muted} /></Pressable>}
                   </View>
                   <Text style={styles.tileText} numberOfLines={4}>{q.text}</Text>
                   <View style={styles.tileFoot}>
@@ -184,7 +197,8 @@ const useStyles = makeStyles((colors) => StyleSheet.create({
   grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", marginTop: 14 },
   tileWrap: { width: "48.5%", marginBottom: 11 },
   tile: { backgroundColor: colors.surfaceSecondary, borderRadius: 16, padding: 12, borderWidth: 1, borderColor: colors.border, minHeight: 128, justifyContent: "space-between" },
-  tileHead: { flexDirection: "row" },
+  tileHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  questionMenu: { width: 28, height: 28, alignItems: "center", justifyContent: "center", marginTop: -6, marginRight: -6 },
   tileCat: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: colors.brandTertiary, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4, maxWidth: "100%" },
   tileCatText: { color: colors.onBrandTertiary, fontSize: 9, fontWeight: "800", flexShrink: 1 },
   tileText: { color: colors.onSurface, fontSize: 12, fontWeight: "700", lineHeight: 17, marginTop: 9, flex: 1 },

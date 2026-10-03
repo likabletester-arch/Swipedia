@@ -1249,6 +1249,23 @@ async def my_questions_list(user: Dict[str, Any] = Depends(get_current_user)) ->
     return [question_public(q, q["question_id"] in saved_ids) for q in rows]
 
 
+@api_router.delete("/questions/{question_id}")
+async def delete_question(question_id: str, user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, bool]:
+    question = await db.questions.find_one({"question_id": question_id}, {"_id": 0, "author_id": 1})
+    if not question:
+        raise HTTPException(status_code=404, detail="Soru bulunamadı")
+    if question["author_id"] != user["user_id"] and not user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Bu soruyu silme yetkin yok")
+    await db.questions.delete_one({"question_id": question_id})
+    await db.answers.delete_many({"question_id": question_id})
+    await db.comments.delete_many({"question_id": question_id})
+    await db.question_likes.delete_many({"question_id": question_id})
+    await db.saved_questions.delete_many({"question_id": question_id})
+    await db.notifications.delete_many({"ref_id": question_id})
+    await db.feed_seen.delete_many({"question_id": question_id})
+    return {"ok": True}
+
+
 @api_router.get("/users/{user_id}/profile")
 async def user_public_profile(user_id: str, request: Request) -> Dict[str, Any]:
     """Başka bir kullanıcının herkese açık profili + paylaştığı sorular."""

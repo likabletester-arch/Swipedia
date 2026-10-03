@@ -202,6 +202,7 @@ export const toggleLike = (questionId: string) => api<{ liked: boolean; likes: n
 export const toggleFollow = (userId: string) => api<{ following: boolean; followers_count: number; following_count: number; is_following: boolean }>(`/users/${userId}/follow`, { method: "POST" }, true);
 export const createQuestion = (payload: { category: string; text: string; options: string[]; correct_index: number; explanation: string; difficulty: string; background?: string | null }) =>
   api<Question>("/questions", { method: "POST", body: JSON.stringify(payload) }, true);
+export const deleteQuestion = (questionId: string) => api<{ ok: boolean }>(`/questions/${questionId}`, { method: "DELETE" }, true);
 export const fetchLeaderboard = () => api<Leader[]>("/leaderboard");
 export const registerPush = (user_id: string, platform: string, device_token: string) =>
   api<{ status: string }>("/register-push", { method: "POST", body: JSON.stringify({ user_id, platform, device_token }) });
