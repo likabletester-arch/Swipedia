@@ -1,4 +1,5 @@
 import Constants from "expo-constants";
+import * as FileSystem from "expo-file-system/legacy";
 import { Platform } from "react-native";
 
 import { storage } from "@/src/utils/storage";
@@ -229,14 +230,23 @@ export async function fileUrl(path: string): Promise<string> {
 
 export async function uploadImage(uri: string, mimeType = "image/jpeg", fileName = "swipedia-image.jpg"): Promise<string> {
   const token = await getToken();
-  const form = new FormData();
   if (__DEV__) console.info("[Swipedia image] upload-start", { uri, mimeType, fileName });
-  if (Platform.OS === "web") {
-    const blob = await (await fetch(uri)).blob();
-    form.append("file", blob, fileName);
-  } else {
-    form.append("file", { uri, name: fileName, type: mimeType } as unknown as Blob);
+  if (Platform.OS !== "web") {
+    const response = await FileSystem.uploadAsync(`${backendUrl}/api/uploads`, uri, {
+      fieldName: "file",
+      httpMethod: "POST",
+      mimeType,
+      uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    const body = JSON.parse(response.body || "{}") as { path?: string; detail?: string };
+    if (__DEV__) console.info("[Swipedia image] upload-response", { status: response.status, body });
+    if (response.status < 200 || response.status >= 300 || !body.path) throw new Error("image-upload-failed");
+    return body.path;
   }
+  const form = new FormData();
+  const blob = await (await fetch(uri)).blob();
+  form.append("file", blob, fileName);
   const response = await fetch(`${backendUrl}/api/uploads`, {
     method: "POST",
     headers: token ? { Authorization: `Bearer ${token}` } : {},
