@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import * as ImagePicker from "expo-image-picker";
 import { Image } from "expo-image";
 import * as Linking from "expo-linking";
 import { useState } from "react";
@@ -23,6 +22,7 @@ import { useI18n } from "@/src/i18n";
 import { usesNativeTabs } from "@/src/navigation";
 import { DIFFICULTIES } from "@/src/ranks";
 import { makeStyles, useTheme } from "@/src/theme";
+import { ImageFlowError, pickCroppedImage } from "@/src/utils/image-upload";
 
 const CATEGORIES = CATEGORY_DEFS;
 
@@ -56,25 +56,16 @@ export default function CreateScreen() {
   const updateOption = (value: string, index: number) => setOptions((old) => old.map((item, i) => (i === index ? value : item)));
 
   const pickBackground = async () => {
-    let permission = await ImagePicker.getMediaLibraryPermissionsAsync();
-    if (permission.status !== "granted" && permission.canAskAgain) {
-      permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    }
-    if (permission.status !== "granted") {
-      setPermDenied(true);
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.7, allowsEditing: true, aspect: [9, 16] });
-    if (result.canceled || !result.assets[0]) return;
-    const asset = result.assets[0];
     setUploading(true);
     try {
-      const path = await uploadImage(asset.uri, asset.mimeType);
+      const asset = await pickCroppedImage([9, 16]);
+      const path = await uploadImage(asset.uri, asset.mimeType, asset.name);
       setBackground(path);
       setBackgroundPreview(asset.uri);
       toast.show(t("create.bgLoaded"));
     } catch (err) {
-      toast.show(err instanceof Error ? err.message : t("create.uploadFailed"));
+      if (err instanceof ImageFlowError && err.code === "permission") setPermDenied(true);
+      else if (!(err instanceof ImageFlowError && err.code === "cancelled")) toast.show(t("create.uploadFailed"));
     } finally {
       setUploading(false);
     }

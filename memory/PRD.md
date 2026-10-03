@@ -57,6 +57,10 @@ TikTok/Reels tarzı dikey kaydırmalı bir öğrenme uygulaması: kullanıcılar
 - Release sertleştirmesi: `production-apk` profili `APP_VARIANT=production` ile çalışır; config üretim origin’i dışında bir `EXPO_PUBLIC_BACKEND_URL` görürse build'i durdurur. API istemcisi yalnızca gömülü config origin'ini kullanır; preview env fallback'i yoktur.
 - AAB’de `micro-genius-3.emergent.host` görülmesi üzerine release config iki katmanda (`app.config.js` + `app.json.extra`) statik doğrulanmış origin’e sabitlendi: `https://micro-genius-3.emergentapps.tr`. API client `Constants.expoConfig.extra.backendUrl` üzerinden bu değeri alır ve `/api` tek kez ekler. Yeni AAB üretimi/asset kontrolü ortam build engeli nedeniyle hâlâ bekliyor.
 
+## Implemented (2026-10-03) — Android görsel upload normalleştirmesi
+- Profil fotoğrafı ve soru arka planı tek `pickCroppedImage` helper'ını kullanır. Android crop sonrası `content://` URI, ImageManipulator ile cache `file://` JPEG’e dönüştürülür; dosya varlığı/boyutu doğrulanır ve 5 MB backend sınırı için yeniden sıkıştırılır.
+- Native multipart yükleme daima üretilmiş `.jpg` adı ve `image/jpeg` MIME ile yapılır; teknik ayrıntılar yalnızca development loglarındadır. Backend upload → avatar update → soru background → dosya okuma zinciri doğrulandı.
+
 ## Prioritized Backlog
 - **P0**: Android production APK: gerçek production backend URL'sini build ortamına `EXPO_PUBLIC_BACKEND_URL` olarak tanımla, Atlas üretim bağlantısını doğrula ve APK'yı bu URL ile yeniden oluştur.
 - **P0**: Rütbe sistemi UI'ı (kullanıcı rütbe isimlerini/eşiklerini verecek — bekleniyor)

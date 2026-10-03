@@ -1,6 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import * as ImagePicker from "expo-image-picker";
 import * as Linking from "expo-linking";
 import { useRouter } from "expo-router";
 import { useState } from "react";
@@ -25,6 +24,7 @@ import { UserAvatar } from "@/src/components/user-avatar";
 import { LANG_NAMES, SUPPORTED_LANGS, useI18n, type Lang } from "@/src/i18n";
 import { FEMALE_AVATARS, MALE_AVATARS, STOCK_AVATARS } from "@/src/stock-avatars";
 import { makeStyles, useTheme } from "@/src/theme";
+import { ImageFlowError, pickCroppedImage } from "@/src/utils/image-upload";
 
 type ChangeMode = "email" | "phone" | "password" | null;
 
@@ -89,27 +89,20 @@ export default function SettingsScreen() {
 
   const pickPhoto = async () => {
     setPhotoModal(false);
-    let permission = await ImagePicker.getMediaLibraryPermissionsAsync();
-    if (permission.status !== "granted" && permission.canAskAgain) {
-      permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    }
-    if (permission.status !== "granted") {
-      Alert.alert(t("create.permTitle"), t("create.permText"), [
-        { text: t("common.cancel"), style: "cancel" },
-        { text: t("create.openSettings"), onPress: () => Linking.openSettings() },
-      ]);
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.7, allowsEditing: true, aspect: [1, 1] });
-    if (result.canceled || !result.assets[0]) return;
     setUploading(true);
     try {
-      const path = await uploadImage(result.assets[0].uri, result.assets[0].mimeType);
+      const asset = await pickCroppedImage([1, 1]);
+      const path = await uploadImage(asset.uri, asset.mimeType, asset.name);
       const updated = await updateProfile({ avatar: path });
       setUser(updated);
       toast.show(t("settings.photoUpdated"));
     } catch (err) {
-      toast.show(err instanceof Error ? err.message : t("create.uploadFailed"));
+      if (err instanceof ImageFlowError && err.code === "permission") {
+        Alert.alert(t("create.permTitle"), t("create.permText"), [
+          { text: t("common.cancel"), style: "cancel" },
+          { text: t("create.openSettings"), onPress: () => Linking.openSettings() },
+        ]);
+      } else if (!(err instanceof ImageFlowError && err.code === "cancelled")) toast.show(t("create.uploadFailed"));
     } finally {
       setUploading(false);
     }

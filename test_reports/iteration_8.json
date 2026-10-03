@@ -1,0 +1,56 @@
+{
+  "summary": "Both backend and frontend were tested for the shared gallery->crop->normalize->multipart flow regression. Settings and Create upload entry points are visible and working in mobile web preview; backend upload/auth/profile chain passes targeted pytest checks. Native Android gallery/crop (content:// on release devices) cannot be executed in Playwright web preview and remains pending device validation.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "Push integration (/api/register-push and notification push trigger path)",
+        "issue": "Backend logs show repeated 401 from Emergent push trigger; notifications persist but push delivery integration is degraded in this environment."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Android native gallery + crop + content:// normalization",
+        "issue": "Not testable in web preview. Playwright cannot access real Android gallery picker/cropper runtime.",
+        "affected_testIDs": [
+          "upload-gallery-button",
+          "background-upload-button"
+        ]
+      }
+    ],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_image_upload_flow_v9.py",
+    "/app/test_reports/pytest/pytest_v8_image_upload.xml",
+    "/app/test_reports/iteration_8_load_mobile.jpeg",
+    "/app/test_reports/iteration_8_upload_entrypoints.jpeg"
+  ],
+  "action_items": [
+    "Run physical Android release-device validation for content:// crop outputs to confirm ImageManipulator always returns usable cache file:// JPEG.",
+    "Confirm native multipart payload on Android release via device/network inspection (uri starts with file://, JPEG mime, generated .jpg filename, and no manual multipart Content-Type header).",
+    "Investigate push provider credential/config to resolve repeated 401 push trigger errors in backend logs."
+  ],
+  "critical_code_review_comments": [
+    "Both Settings and Create flows use the same helper: pickCroppedImage from /app/frontend/src/utils/image-upload.ts.",
+    "Helper normalizes with Expo ImageManipulator to JPEG and verifies file existence/size via FileSystem.getInfoAsync before returning upload metadata.",
+    "uploadImage native path appends multipart file object { uri, name, type } and intentionally avoids manually setting multipart Content-Type headers."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_image_upload_flow_v9.py",
+    "/app/test_reports/iteration_8.json"
+  ],
+  "success_rate": {
+    "backend": "100% (4/4 targeted pytest tests passed)",
+    "frontend": "90% (requested UI regressions passed; native Android gallery/crop runtime untestable in web preview)"
+  },
+  "seed_data_creation": "Created temporary upload objects during /api/uploads tests; no new user/question created. Admin avatar was restored to original value in test cleanup.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Do not recreate users/questions. Continue with device-level Android release validation only for real gallery/crop/content:// behavior and multipart wire payload verification.",
+  "rca_of_issue": "No regression found in shared helper wiring or web UI entry points. Remaining risk is platform-specific: Android release crop can return content:// URI, which cannot be emulated in Playwright web runtime."
+}

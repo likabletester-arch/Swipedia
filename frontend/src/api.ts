@@ -227,16 +227,15 @@ export async function fileUrl(path: string): Promise<string> {
   return `${backendUrl}/api/files/${path}${token ? `?token=${encodeURIComponent(token)}` : ""}`;
 }
 
-export async function uploadImage(uri: string, mimeType?: string): Promise<string> {
+export async function uploadImage(uri: string, mimeType = "image/jpeg", fileName = "swipedia-image.jpg"): Promise<string> {
   const token = await getToken();
   const form = new FormData();
-  const name = uri.split("/").pop() || "photo.jpg";
-  const type = mimeType || "image/jpeg";
+  if (__DEV__) console.info("[Swipedia image] upload-start", { uri, mimeType, fileName });
   if (Platform.OS === "web") {
     const blob = await (await fetch(uri)).blob();
-    form.append("file", blob, name);
+    form.append("file", blob, fileName);
   } else {
-    form.append("file", { uri, name, type } as unknown as Blob);
+    form.append("file", { uri, name: fileName, type: mimeType } as unknown as Blob);
   }
   const response = await fetch(`${backendUrl}/api/uploads`, {
     method: "POST",
@@ -244,6 +243,7 @@ export async function uploadImage(uri: string, mimeType?: string): Promise<strin
     body: form,
   });
   const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body.detail || "Yükleme başarısız");
+  if (__DEV__) console.info("[Swipedia image] upload-response", { status: response.status, body });
+  if (!response.ok) throw new Error("image-upload-failed");
   return body.path as string;
 }

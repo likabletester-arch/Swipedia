@@ -165,6 +165,15 @@ backend:
       - working: "NA"
         comment: "ProfileUpdate.bio zaten vardı; public_user bio default '' yapıldı. PATCH /users/me bio kaydeder."
 frontend:
+  - task: "Android ortak görsel crop ve upload akışı"
+    file: "/app/frontend/src/utils/image-upload.ts, /app/frontend/src/api.ts, /app/frontend/app/settings.tsx, /app/frontend/app/(tabs)/create.tsx"
+    implemented: true
+    needs_retesting: true
+    status_history:
+      - working: true
+        comment: "Kök neden: ImagePicker Android crop sonucundaki content:// URI doğrudan native FormData'ya iletiliyordu. Ortak pickCroppedImage helper'ı sonucu ImageManipulator ile uygulama cache'inde file:// JPEG'e dönüştürür, FileSystem ile varlık/boyut kontrolü yapar, sonra iki akış aynı isim/MIME ile multipart upload'a iletir. Dev logları URI/crop/işlenmiş dosya/MIME/boyut/upload status içindir; kullanıcı yalnızca anlaşılır hata görür."
+      - working: true
+        comment: "Backend zinciri manuel test: multipart upload 200, avatar update başarılı, aynı dosya yolu ile soru create başarılı, yetkili dosya GET 200. Test agent: 4/4 hedef upload testi geçti; ayarlar/create giriş noktaları görünür. Gerçek Android release content:// crop fiziksel cihaz olmadan test edilemedi. Test sonunda reset: 1 admin, 0 normal kullanıcı, 0 soru, 0 uploads DB kaydı, 0 oturum, 0 bildirim."
   - task: "Swip etiketi ve arama içi görsel keşfet"
     file: "/app/frontend/src/components/custom-tab-bar.tsx, /app/frontend/src/components/search-panel.tsx, /app/frontend/src/i18n.tsx"
     implemented: true
