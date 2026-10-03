@@ -122,14 +122,16 @@ backend:
       - working: true
         comment: "Son temiz durum doğrulandı: 1 kullanıcı, hedef admin 1, normal kullanıcı 0, soru 0, oturum 0. Admin girişi 200 ve boş akış ekranı test edildi; sonrasında test oturumu tekrar silindi."
   - task: "Android APK kimlik doğrulama üretim yönlendirmesi"
-    file: "/app/frontend/.env, /app/frontend/src/api.ts, /app/backend/server.py"
-    implemented: false
+    file: "/app/frontend/app.config.js, /app/frontend/eas.json, /app/frontend/src/api.ts"
+    implemented: true
     needs_retesting: true
     status_history:
       - working: false
         comment: "Kullanıcı gerçek Android APK'da kayıt ve misafir girişinin çalışmadığını bildirdi. Kaynak build ayarı EXPO_PUBLIC_BACKEND_URL=https://micro-genius-3.preview.emergentagent.com kullanıyor; üretim backend alan adı/release build yapılandırması tanımlı değil. Genel ağdan mevcut preview /api/auth/guest ve /api/auth/register/request-code 200 döndü; yerel Mongo ping başarılı."
       - working: false
         comment: "Kullanıcı Android APK'da guest, admin login ve kayıt akışlarının tümünde javax.net.ssl.SSLException: Unable to parse TLS packet header aldığını bildirdi. Kaynaktaki tek API URL preview alan adı; public TLSv1.3 sertifika doğrulaması, /health, guest ve admin login HTTPS üzerinden 200 döndü. Bu nedenle hata kaynakta görünen canlı endpointten değil, APK'nin gömülü release URL/port yapılandırmasından kaynaklanıyor ve üretim URL'si mevcut ortamda tanımlı değil."
+      - working: true
+        comment: "Kullanıcı doğruladı: production API origin https://micro-genius-3.emergentapps.tr. app.config.js bu değeri EXPO_PUBLIC_BACKEND_URL'den Constants.expoConfig.extra.backendUrl olarak release bundle'a gömer; eas.json production-apk profili production ortamını seçer. `expo config` üretim değişkeniyle tam origin'i doğruladı; api.ts mevcut tek `/api` eklemesini korur. Public TLSv1.3 sertifikası geçerli, /health 200, guest 200 ve admin login 200. EAS build komutu bu çalışma ortamındaki cmd-guard tarafından engellendi; fiziksel APK retesti Publish sonrası platform UI ile bekliyor."
   - task: "Eski kayıt API uyumluluğu ve okunabilir doğrulama hatası"
     file: "/app/backend/server.py, /app/frontend/src/api.ts"
     implemented: true

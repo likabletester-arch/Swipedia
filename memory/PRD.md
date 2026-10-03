@@ -50,6 +50,11 @@ TikTok/Reels tarzı dikey kaydırmalı bir öğrenme uygulaması: kullanıcılar
 - Alt navigasyonun orta etiketi `Swip` oldu. Arama overlay'i artık sunucudan küçük rastgele batch ile yalnızca yayınlanmış aktif soruları görsel keşfet kartları olarak getirir.
 - Görsel kartlar `contentFit="contain"` ile kaynaktaki oranı korur; metin yalnızca alt kısımda hafif gradient üzerinde görünür. Soru yoksa iki dilde keşfet boş durumu gösterilir.
 
+## Implemented (2026-10-03) — Android release API yapılandırması
+- `app.config.js`, release bundle içindeki `extra.backendUrl` değerini build ortamındaki `EXPO_PUBLIC_BACKEND_URL` üzerinden alır. `eas.json` içindeki `production-apk` profili production ortamını kullanır.
+- Doğrulanan production API origin: `https://micro-genius-3.emergentapps.tr`; istemci mevcut biçimde yalnızca bir kez `/api` ekler. TLS, health, guest login ve admin login dış ağdan doğrulandı.
+- Fiziksel APK üretimi bu çalışma ortamında komut engeli nedeniyle başlatılamadı; Publish sonrası platform build arayüzünden oluşturulup cihazda tekrar test edilmelidir.
+
 ## Prioritized Backlog
 - **P0**: Android production APK: gerçek production backend URL'sini build ortamına `EXPO_PUBLIC_BACKEND_URL` olarak tanımla, Atlas üretim bağlantısını doğrula ve APK'yı bu URL ile yeniden oluştur.
 - **P0**: Rütbe sistemi UI'ı (kullanıcı rütbe isimlerini/eşiklerini verecek — bekleniyor)
