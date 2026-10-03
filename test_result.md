@@ -128,6 +128,8 @@ backend:
     status_history:
       - working: false
         comment: "Kullanıcı gerçek Android APK'da kayıt ve misafir girişinin çalışmadığını bildirdi. Kaynak build ayarı EXPO_PUBLIC_BACKEND_URL=https://micro-genius-3.preview.emergentagent.com kullanıyor; üretim backend alan adı/release build yapılandırması tanımlı değil. Genel ağdan mevcut preview /api/auth/guest ve /api/auth/register/request-code 200 döndü; yerel Mongo ping başarılı."
+      - working: false
+        comment: "Kullanıcı Android APK'da guest, admin login ve kayıt akışlarının tümünde javax.net.ssl.SSLException: Unable to parse TLS packet header aldığını bildirdi. Kaynaktaki tek API URL preview alan adı; public TLSv1.3 sertifika doğrulaması, /health, guest ve admin login HTTPS üzerinden 200 döndü. Bu nedenle hata kaynakta görünen canlı endpointten değil, APK'nin gömülü release URL/port yapılandırmasından kaynaklanıyor ve üretim URL'si mevcut ortamda tanımlı değil."
   - task: "Eski kayıt API uyumluluğu ve okunabilir doğrulama hatası"
     file: "/app/backend/server.py, /app/frontend/src/api.ts"
     implemented: true
@@ -193,6 +195,7 @@ metadata:
   created_by: "main_agent"
 test_plan:
   current_focus:
+    - "Android APK kimlik doğrulama üretim yönlendirmesi"
     - "Yalnızca Türkçe ve American English dil sistemi"
     - "Yayınlanmış sorular için oturum-bazlı rastgele akış"
     - "Temiz başlangıç ve tek gerçek admin"
