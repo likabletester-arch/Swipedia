@@ -3,6 +3,7 @@ import * as AppleAuthentication from "expo-apple-authentication";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import { Redirect, useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -55,6 +56,13 @@ export default function LoginScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [appleReady, setAppleReady] = useState(false);
+  const [authModeReady, setAuthModeReady] = useState(false);
+
+  useEffect(() => {
+    AsyncStorage.getItem("swipedia-next-auth-mode")
+      .then((stored) => { if (stored === "register" || stored === "login") setMode(stored); })
+      .finally(async () => { await AsyncStorage.removeItem("swipedia-next-auth-mode"); setAuthModeReady(true); });
+  }, []);
 
   useEffect(() => {
     if (Platform.OS === "ios") {
@@ -82,6 +90,7 @@ export default function LoginScreen() {
   }, [router, setUser, t]);
 
   if (ready && user) return <Redirect href="/(tabs)" />;
+  if (!authModeReady) return null;
 
   const run = async (action: () => Promise<User>) => {
     setBusy(true);

@@ -62,6 +62,10 @@ TikTok/Reels tarzı dikey kaydırmalı bir öğrenme uygulaması: kullanıcılar
 - Native multipart yükleme daima üretilmiş `.jpg` adı ve `image/jpeg` MIME ile yapılır; teknik ayrıntılar yalnızca development loglarındadır. Backend upload → avatar update → soru background → dosya okuma zinciri doğrulandı.
 - Telefon preview geri bildirimi sonrası Android native upload, FormData yerine `expo-file-system/legacy` `uploadAsync(...MULTIPART)` kullanacak şekilde düzeltildi; bu, ImageManipulator cache URI'sini Android katmanında okur. Fiziksel cihazda yeniden test bekleniyor.
 
+## Implemented (2026-10-03) — Guest demo yetkileri
+- Guest hesapları feed/kategori okumayı sürdürür; profil değişikliği, görsel upload, soru oluşturma/yayınlama, cevap/beğeni/kayıt/yorum/takip/mesaj ve bildirim yazmaları backend `require_registered_user` guard ile 403 döner.
+- Frontend `useRequireAccount` merkezi modalı Create ve Profile → Settings girişlerinde çalışır. Kayıt Ol/Giriş Yap guest oturumunu kapatıp ilgili login moduna taşır; normal ve admin hesaplar sınırlanmaz.
+
 ## Prioritized Backlog
 - **P0**: Android production APK: gerçek production backend URL'sini build ortamına `EXPO_PUBLIC_BACKEND_URL` olarak tanımla, Atlas üretim bağlantısını doğrula ve APK'yı bu URL ile yeniden oluştur.
 - **P0**: Rütbe sistemi UI'ı (kullanıcı rütbe isimlerini/eşiklerini verecek — bekleniyor)

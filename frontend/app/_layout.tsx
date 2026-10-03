@@ -7,6 +7,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 
 import { AuthProvider } from "@/src/auth";
+import { GuestGuardProvider } from "@/src/guest-guard";
 import { ErrorBoundary } from "@/src/components/error-boundary";
 import { LanguageProvider, useI18n } from "@/src/i18n";
 import { isExpoGo } from "@/src/push";
@@ -103,7 +104,7 @@ export default function RootLayout() {
             <LanguageProvider>
             <PushSetup />
             <AuthProvider>
-              <Stack screenOptions={{ headerShown: false }} />
+              <GuestGuardProvider><Stack screenOptions={{ headerShown: false }} /></GuestGuardProvider>
             </AuthProvider>
             </LanguageProvider>
           </ThemeProvider>

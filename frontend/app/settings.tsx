@@ -24,6 +24,7 @@ import { UserAvatar } from "@/src/components/user-avatar";
 import { LANG_NAMES, SUPPORTED_LANGS, useI18n, type Lang } from "@/src/i18n";
 import { FEMALE_AVATARS, MALE_AVATARS, STOCK_AVATARS } from "@/src/stock-avatars";
 import { makeStyles, useTheme } from "@/src/theme";
+import { useRequireAccount } from "@/src/guest-guard";
 import { ImageFlowError, pickCroppedImage } from "@/src/utils/image-upload";
 
 type ChangeMode = "email" | "phone" | "password" | null;
@@ -36,6 +37,7 @@ export default function SettingsScreen() {
   const { user, setUser } = useAuth();
   const { t, lang, setLang } = useI18n();
   const toast = useToast();
+  const requireAccount = useRequireAccount();
 
   const [name, setName] = useState(user?.name ?? "");
   const [username, setUsername] = useState(user?.username ?? "");
@@ -58,6 +60,7 @@ export default function SettingsScreen() {
   const isGuest = !!user.is_guest;
 
   const save = async () => {
+    if (!requireAccount(t("guest.profile"))) return;
     setSaving(true);
     try {
       const updated = await updateProfile({ name: name.trim() || undefined, username: username.trim() || undefined, bio });
@@ -74,6 +77,7 @@ export default function SettingsScreen() {
   };
 
   const selectStock = async (avatarId: string) => {
+    if (!requireAccount(t("guest.profile"))) return;
     setPhotoModal(false);
     setUploading(true);
     try {
@@ -88,6 +92,7 @@ export default function SettingsScreen() {
   };
 
   const pickPhoto = async () => {
+    if (!requireAccount(t("guest.profile"))) return;
     setPhotoModal(false);
     setUploading(true);
     try {
@@ -109,6 +114,7 @@ export default function SettingsScreen() {
   };
 
   const openChange = (next: Exclude<ChangeMode, null>) => {
+    if (!requireAccount(t("guest.profile"))) return;
     setMode(next);
     setStep("input");
     setNewValue(next === "email" ? user.email : next === "phone" ? (user.phone ?? "") : "");

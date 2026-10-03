@@ -6,6 +6,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withSequence, withTiming } 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useI18n } from "@/src/i18n";
+import { useRequireAccount } from "@/src/guest-guard";
 import { useTheme } from "@/src/theme";
 
 type Item = { name: string; labelKey: string; icon: keyof typeof Ionicons.glyphMap };
@@ -40,6 +41,7 @@ function AnimatedIcon({ name, color, size, focused }: { name: keyof typeof Ionic
 export function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const { colors } = useTheme();
   const { t } = useI18n();
+  const requireAccount = useRequireAccount();
   const insets = useSafeAreaInsets();
 
   return (
@@ -60,6 +62,7 @@ export function CustomTabBar({ state, navigation }: BottomTabBarProps) {
         const focused = state.index === routeIndex;
         const color = focused ? colors.brandPrimary : colors.muted;
         const onPress = () => {
+          if (item.name === "create" && !requireAccount(t("guest.question"))) return;
           const route = state.routes[routeIndex];
           if (!route) return;
           if (!focused) navigation.navigate(route.name);

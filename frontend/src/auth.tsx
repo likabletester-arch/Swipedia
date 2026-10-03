@@ -29,8 +29,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Her uygulama açılışında / giriş yapıldığında push kaydı (token rotasyonu için güvenli upsert).
   useEffect(() => {
-    if (user?.user_id) registerForPush(user.user_id);
-  }, [user?.user_id]);
+    if (user?.user_id && !user.is_guest) registerForPush(user.user_id);
+  }, [user?.is_guest, user?.user_id]);
 
   const value = useMemo<AuthContextValue>(
     () => ({

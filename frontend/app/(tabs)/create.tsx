@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as Linking from "expo-linking";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "expo-router";
 import {
   ActivityIndicator,
   Modal,
@@ -19,6 +20,8 @@ import { createQuestion, uploadImage } from "@/src/api";
 import { CATEGORY_DEFS } from "@/src/categories";
 import { ToastView, useToast } from "@/src/components/toast";
 import { useI18n } from "@/src/i18n";
+import { useAuth } from "@/src/auth";
+import { useRequireAccount } from "@/src/guest-guard";
 import { usesNativeTabs } from "@/src/navigation";
 import { DIFFICULTIES } from "@/src/ranks";
 import { makeStyles, useTheme } from "@/src/theme";
@@ -38,6 +41,9 @@ export default function CreateScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { t } = useI18n();
+  const { user } = useAuth();
+  const requireAccount = useRequireAccount();
+  const router = useRouter();
   const toast = useToast();
   const bottomChrome = usesNativeTabs ? insets.bottom : 0;
 
@@ -53,9 +59,14 @@ export default function CreateScreen() {
   const [permDenied, setPermDenied] = useState(false);
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    if (user?.is_guest && !requireAccount(t("guest.question"))) router.replace("/(tabs)");
+  }, [requireAccount, router, t, user?.is_guest]);
+
   const updateOption = (value: string, index: number) => setOptions((old) => old.map((item, i) => (i === index ? value : item)));
 
   const pickBackground = async () => {
+    if (!requireAccount(t("guest.question"))) return;
     setUploading(true);
     try {
       const asset = await pickCroppedImage([9, 16]);
@@ -72,6 +83,7 @@ export default function CreateScreen() {
   };
 
   const publish = async () => {
+    if (!requireAccount(t("guest.question"))) return;
     if (!text.trim() || options.some((item) => !item.trim()) || !explanation.trim()) {
       toast.show(t("create.incomplete"));
       return;

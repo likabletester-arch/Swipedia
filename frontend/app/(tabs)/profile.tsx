@@ -19,6 +19,7 @@ import { FadeSlideIn } from "@/src/components/fade-slide-in";
 import { CreatorRankCard } from "@/src/components/creator-rank-card";
 import { UserAvatar } from "@/src/components/user-avatar";
 import { useI18n } from "@/src/i18n";
+import { useRequireAccount } from "@/src/guest-guard";
 import { usesNativeTabs } from "@/src/navigation";
 import { formatPoints, rankFor, rankName } from "@/src/ranks";
 import { makeStyles, useTheme } from "@/src/theme";
@@ -32,6 +33,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { t, lang } = useI18n();
   const { user, logout } = useAuth();
+  const requireAccount = useRequireAccount();
   const bottomChrome = usesNativeTabs ? insets.bottom : 0;
 
   const [tab, setTab] = useState<Tab>("shared");
@@ -83,7 +85,7 @@ export default function ProfileScreen() {
           <Pressable testID="logout-icon-button" onPress={onLogout} style={({ pressed }) => [styles.iconButton, pressed && { opacity: 0.7 }]}>
             <Ionicons name="log-out-outline" size={19} color={colors.error} />
           </Pressable>
-          <Pressable testID="settings-button" onPress={() => router.push("/settings")} style={({ pressed }) => [styles.iconButton, pressed && { opacity: 0.7 }]}>
+          <Pressable testID="settings-button" onPress={() => { if (requireAccount(t("guest.profile"))) router.push("/settings"); }} style={({ pressed }) => [styles.iconButton, pressed && { opacity: 0.7 }]}>
             <Ionicons name="settings-outline" size={19} color={colors.onSurface} />
           </Pressable>
         </View>

@@ -366,6 +366,17 @@ async def get_optional_user(request: Request) -> Optional[Dict[str, Any]]:
         return None
 
 
+async def require_registered_user(user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, Any]:
+    """Guest oturumları yalnızca demo/okuma akışını kullanabilir."""
+    if user.get("provider") == "guest":
+        raise HTTPException(
+            status_code=403,
+            detail="Bu işlem için hesap oluşturmanız veya giriş yapmanız gerekir.",
+            headers={"X-Auth-Required": "signup-or-login"},
+        )
+    return user
+
+
 class Credentials(BaseModel):
     identifier: str = Field(min_length=3, max_length=120)
     password: str = Field(min_length=1, max_length=120)
@@ -904,7 +915,7 @@ async def me(user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, Any]
 
 
 @api_router.patch("/users/me")
-async def update_profile(payload: ProfileUpdate, user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, Any]:
+async def update_profile(payload: ProfileUpdate, user: Dict[str, Any] = Depends(require_registered_user)) -> Dict[str, Any]:
     updates: Dict[str, Any] = {}
     if payload.name:
         updates["name"] = payload.name.strip()
@@ -940,7 +951,7 @@ async def update_profile(payload: ProfileUpdate, user: Dict[str, Any] = Depends(
 
 
 @api_router.post("/users/me/password")
-async def change_password(payload: ChangePassword, user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, bool]:
+async def change_password(payload: ChangePassword, user: Dict[str, Any] = Depends(require_registered_user)) -> Dict[str, bool]:
     if not user.get("password_hash"):
         raise HTTPException(status_code=400, detail="Bu hesap şifre ile giriş yapmıyor")
     if not bcrypt.checkpw(payload.current_password.encode(), user["password_hash"].encode()):
@@ -954,7 +965,7 @@ async def change_password(payload: ChangePassword, user: Dict[str, Any] = Depend
 
 
 @api_router.post("/users/me/request-change-code")
-async def request_change_code(payload: ContactChangeRequest, user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, bool]:
+async def request_change_code(payload: ContactChangeRequest, user: Dict[str, Any] = Depends(require_registered_user)) -> Dict[str, bool]:
     if payload.field not in ("email", "phone"):
         raise HTTPException(status_code=422, detail="Geçersiz alan")
     current_email = user.get("email", "")
@@ -975,7 +986,7 @@ async def request_change_code(payload: ContactChangeRequest, user: Dict[str, Any
 
 
 @api_router.post("/users/me/confirm-change")
-async def confirm_change(payload: ContactChangeVerify, user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, Any]:
+async def confirm_change(payload: ContactChangeVerify, user: Dict[str, Any] = Depends(require_registered_user)) -> Dict[str, Any]:
     if payload.field not in ("email", "phone"):
         raise HTTPException(status_code=422, detail="Geçersiz alan")
     data = await verify_code(user["user_id"], f"change_{payload.field}", payload.code)
@@ -1095,7 +1106,7 @@ async def feed(request: Request, limit: int = 12, category: Optional[str] = None
 
 
 @api_router.post("/questions/{question_id}/like")
-async def like_question(question_id: str, user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, Any]:
+async def like_question(question_id: str, user: Dict[str, Any] = Depends(require_registered_user)) -> Dict[str, Any]:
     question = await db.questions.find_one({"question_id": question_id}, {"_id": 0, "question_id": 1, "author_id": 1, "text": 1})
     if not question:
         raise HTTPException(status_code=404, detail="Soru bulunamadı")
@@ -1116,7 +1127,7 @@ async def like_question(question_id: str, user: Dict[str, Any] = Depends(get_cur
 
 
 @api_router.post("/questions/{question_id}/answer")
-async def answer(question_id: str, payload: AnswerRequest, user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, Any]:
+async def answer(question_id: str, payload: AnswerRequest, user: Dict[str, Any] = Depends(require_registered_user)) -> Dict[str, Any]:
     question = await db.questions.find_one({"question_id": question_id}, {"_id": 0})
     if not question:
         raise HTTPException(status_code=404, detail="Soru bulunamadı")
@@ -1159,7 +1170,7 @@ async def answer(question_id: str, payload: AnswerRequest, user: Dict[str, Any] 
 
 
 @api_router.post("/questions/{question_id}/save")
-async def save_question(question_id: str, user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, bool]:
+async def save_question(question_id: str, user: Dict[str, Any] = Depends(require_registered_user)) -> Dict[str, bool]:
     question = await db.questions.find_one({"question_id": question_id}, {"_id": 0, "question_id": 1})
     if not question:
         raise HTTPException(status_code=404, detail="Soru bulunamadı")
@@ -1182,7 +1193,7 @@ async def comments(question_id: str) -> List[Dict[str, Any]]:
 
 
 @api_router.post("/questions/{question_id}/comments")
-async def add_comment(question_id: str, payload: CommentRequest, user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, Any]:
+async def add_comment(question_id: str, payload: CommentRequest, user: Dict[str, Any] = Depends(require_registered_user)) -> Dict[str, Any]:
     comment = {"comment_id": f"c_{uuid.uuid4().hex[:12]}", "question_id": question_id, "user_id": user["user_id"], "user_name": user["name"], "text": payload.text, "created_at": now_utc().isoformat()}
     await db.comments.insert_one(comment.copy())
     await db.questions.update_one({"question_id": question_id}, {"$inc": {"comments_count": 1}})
@@ -1195,7 +1206,7 @@ async def add_comment(question_id: str, payload: CommentRequest, user: Dict[str,
 
 
 @api_router.post("/questions")
-async def create_question(payload: QuestionCreate, user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, Any]:
+async def create_question(payload: QuestionCreate, user: Dict[str, Any] = Depends(require_registered_user)) -> Dict[str, Any]:
     if payload.difficulty not in DIFFICULTIES:
         raise HTTPException(status_code=422, detail="Geçersiz zorluk seviyesi")
     question = {
@@ -1250,7 +1261,7 @@ async def my_questions_list(user: Dict[str, Any] = Depends(get_current_user)) ->
 
 
 @api_router.delete("/questions/{question_id}")
-async def delete_question(question_id: str, user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, bool]:
+async def delete_question(question_id: str, user: Dict[str, Any] = Depends(require_registered_user)) -> Dict[str, bool]:
     question = await db.questions.find_one({"question_id": question_id}, {"_id": 0, "author_id": 1})
     if not question:
         raise HTTPException(status_code=404, detail="Soru bulunamadı")
@@ -1289,7 +1300,7 @@ async def follow_stats(user_id: str, viewer_id: Optional[str]) -> Dict[str, Any]
 
 
 @api_router.post("/users/{user_id}/follow")
-async def toggle_follow(user_id: str, user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, Any]:
+async def toggle_follow(user_id: str, user: Dict[str, Any] = Depends(require_registered_user)) -> Dict[str, Any]:
     if user_id == user["user_id"]:
         raise HTTPException(status_code=400, detail="Kendini takip edemezsin")
     target = await db.users.find_one({"user_id": user_id}, {"_id": 0, "user_id": 1})
@@ -1332,7 +1343,7 @@ async def messages(other_user_id: str, user: Dict[str, Any] = Depends(get_curren
 
 
 @api_router.post("/conversations/{other_user_id}/messages")
-async def send_message(other_user_id: str, payload: MessageCreate, user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, Any]:
+async def send_message(other_user_id: str, payload: MessageCreate, user: Dict[str, Any] = Depends(require_registered_user)) -> Dict[str, Any]:
     recipient = await db.users.find_one({"user_id": other_user_id}, {"_id": 0, "user_id": 1, "name": 1})
     if not recipient:
         raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
@@ -1397,7 +1408,9 @@ async def create_notification(
 
 
 @api_router.post("/register-push", status_code=201)
-async def register_push(body: RegisterPushBody) -> Dict[str, str]:
+async def register_push(body: RegisterPushBody, user: Dict[str, Any] = Depends(require_registered_user)) -> Dict[str, str]:
+    if body.user_id != user["user_id"]:
+        raise HTTPException(status_code=403, detail="Başka kullanıcı için bildirim kaydı oluşturamazsın")
     resp = await _push_client.post("/api/v1/push/users/register", json=body.model_dump())
     if resp.status_code == 401:
         raise HTTPException(status_code=500, detail="EMERGENT_PUSH_KEY missing or invalid")
@@ -1422,7 +1435,7 @@ async def unread_count(user: Dict[str, Any] = Depends(get_current_user)) -> Dict
 
 
 @api_router.post("/notifications/{notification_id}/read")
-async def mark_read(notification_id: str, user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, bool]:
+async def mark_read(notification_id: str, user: Dict[str, Any] = Depends(require_registered_user)) -> Dict[str, bool]:
     result = await db.notifications.update_one(
         {"notification_id": notification_id, "user_id": user["user_id"]},
         {"$set": {"read": True}},
@@ -1431,7 +1444,7 @@ async def mark_read(notification_id: str, user: Dict[str, Any] = Depends(get_cur
 
 
 @api_router.post("/notifications/read-all")
-async def mark_all_read(user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, bool]:
+async def mark_all_read(user: Dict[str, Any] = Depends(require_registered_user)) -> Dict[str, bool]:
     await db.notifications.update_many(
         {"user_id": user["user_id"], "read": False},
         {"$set": {"read": True}},
@@ -1442,7 +1455,7 @@ async def mark_all_read(user: Dict[str, Any] = Depends(get_current_user)) -> Dic
 # ---------- Uploads (soru arka planları) ----------
 
 @api_router.post("/uploads")
-async def upload_file(file: UploadFile = File(...), user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, str]:
+async def upload_file(file: UploadFile = File(...), user: Dict[str, Any] = Depends(require_registered_user)) -> Dict[str, str]:
     data = await file.read()
     if not data:
         raise HTTPException(status_code=400, detail="Boş dosya")

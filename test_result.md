@@ -165,6 +165,17 @@ backend:
       - working: "NA"
         comment: "ProfileUpdate.bio zaten vardı; public_user bio default '' yapıldı. PATCH /users/me bio kaydeder."
 frontend:
+  - task: "Merkezi guest demo yetki koruması"
+    file: "/app/backend/server.py, /app/frontend/src/guest-guard.ts, /app/frontend/src/components/custom-tab-bar.tsx, /app/frontend/app/(tabs)/create.tsx, /app/frontend/app/(tabs)/profile.tsx, /app/frontend/app/settings.tsx, /app/frontend/app/login.tsx, /app/frontend/src/auth.tsx, /app/frontend/src/i18n.tsx"
+    implemented: true
+    needs_retesting: true
+    status_history:
+      - working: true
+        comment: "Backend API testi: guest feed=200; guest profile update/question create/upload=403; normal test user profile update/question create=200. Frontend custom tab Create ve Profile Settings aynı useRequireAccount merkezi hook'unu kullanır; Register/Login seçiminde guest session temizlenir ve login ekranının ilgili moduna yönlenir."
+      - working: false
+        comment: "Manuel web screenshot denemesi mevcut normal web session'ı nedeniyle gerçek guest oturumu yerine normal test kullanıcısını gösterdi; bu frontend sonucu geçersizdir. Ayrı kapsamlı test bekleniyor."
+      - working: true
+        comment: "Kapsamlı test agenti backend 403/normal kullanıcı izinlerini doğruladı. Web Alert görünürlüğü için merkezi modal eklendi. Son mobil web doğrulaması: guest Create → prompt → Kayıt Ol, guest oturumunu kapatıp kayıt formunu açtı; prompt tamamen kapandı."
   - task: "Android ortak görsel crop ve upload akışı"
     file: "/app/frontend/src/utils/image-upload.ts, /app/frontend/src/api.ts, /app/frontend/app/settings.tsx, /app/frontend/app/(tabs)/create.tsx"
     implemented: true
