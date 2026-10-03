@@ -103,6 +103,24 @@
 #====================================================================================================
 ## Session: Faz 2 — stok avatar + bio + takip + beğeni (Ekim 2026)
 backend:
+  - task: "Yayınlanmış sorular için oturum-bazlı rastgele akış"
+    file: "/app/backend/server.py, /app/frontend/src/api.ts, /app/frontend/app/(tabs)/index.tsx"
+    implemented: true
+    needs_retesting: false
+    status_history:
+      - working: true
+        comment: "GET /api/feed küçük batch'lerle yalnızca aktif/yayınlanmış/görünür/silinmemiş soruları getirir. feed_seen + feed_cycle_state kullanıcı/katman bazlı tekrarı engeller; FlatList sona yaklaşınca 8 yeni kart ekler. Manuel API testi: 18 benzersiz soru, kategori filtresi 6/6 Bilim, üç batch 81 ms; gizli ve pasif soru dışlandı."
+      - working: true
+        comment: "Kapsamlı test agenti: 3 ardışık batch tekrar içermedi; gizli/pasif/silinmiş/yayında olmayan kayıtlar dışlandı; Bilim filtresi doğru; misafir giriş ve kart akışı geçti."
+  - task: "Temiz başlangıç ve tek gerçek admin"
+    file: "/app/backend/server.py, /app/backend/reset_clean_start.py, /app/backend/.env"
+    implemented: true
+    needs_retesting: false
+    status_history:
+      - working: true
+        comment: "750 soru otomatik seed'i kaldırıldı. Kontrollü reset komutu kullanıcılar, sorular, oturumlar ve ilişkili test verilerini temizleyip yalnızca server env'den gelen gerçek admini bırakır."
+      - working: true
+        comment: "Son temiz durum doğrulandı: 1 kullanıcı, hedef admin 1, normal kullanıcı 0, soru 0, oturum 0. Admin girişi 200 ve boş akış ekranı test edildi; sonrasında test oturumu tekrar silindi."
   - task: "Android APK kimlik doğrulama üretim yönlendirmesi"
     file: "/app/frontend/.env, /app/frontend/src/api.ts, /app/backend/server.py"
     implemented: false
@@ -110,6 +128,13 @@ backend:
     status_history:
       - working: false
         comment: "Kullanıcı gerçek Android APK'da kayıt ve misafir girişinin çalışmadığını bildirdi. Kaynak build ayarı EXPO_PUBLIC_BACKEND_URL=https://micro-genius-3.preview.emergentagent.com kullanıyor; üretim backend alan adı/release build yapılandırması tanımlı değil. Genel ağdan mevcut preview /api/auth/guest ve /api/auth/register/request-code 200 döndü; yerel Mongo ping başarılı."
+  - task: "Eski kayıt API uyumluluğu ve okunabilir doğrulama hatası"
+    file: "/app/backend/server.py, /app/frontend/src/api.ts"
+    implemented: true
+    needs_retesting: false
+    status_history:
+      - working: true
+        comment: "POST /api/auth/register artık identifier/password sözleşmesini doğru işler; manuel test 200 döndü. FastAPI 422 detail dizileri kullanıcı arayüzünde alan bazlı okunabilir metne dönüştürülüyor; mobil ekran testi [object Object] göstermedi."
   - task: "Soru beğeni (like) toggle + feed liked flag"
     file: "/app/backend/server.py"
     implemented: true
@@ -143,10 +168,14 @@ metadata:
   created_by: "main_agent"
 test_plan:
   current_focus:
+    - "Yayınlanmış sorular için oturum-bazlı rastgele akış"
+    - "Temiz başlangıç ve tek gerçek admin"
     - "Soru beğeni (like) toggle + feed liked flag"
     - "Takip sistemi (follow/unfollow) + takipçi sayıları + bildirim"
     - "Profil biyografisi (PATCH /users/me bio)"
   stuck_tasks: []
 agent_communication:
+  - agent: "main"
+    message: "KAPSAMLI TEST: Mevcut geçici API test verisiyle (24 soru; 1 gizli, 1 pasif) backend random feed test edildi. Şimdi (1) admin girişinden sonra akışın yüklendiğini, (2) 3 batch'te soru ID tekrarının olmadığını, (3) Bilim kategori filtresinin yalnızca Bilim döndürdüğünü, (4) gizli/pasif soru görünmediğini, (5) mevcut login/signup/misafir akışlarının bozulmadığını, (6) temiz başlangıç komutundan sonra 1 admin / 0 normal kullanıcı / 0 soru kaldığını test et. Admin credential /app/memory/test_credentials.md içindedir. TEST BİTİNCE main agent geçici tüm veriyi reset_clean_start.py ile silecektir; yeni kalıcı veri oluşturma."
   - agent: "main"
     message: "ÖNEMLİ FIX: Expo Go'da uygulama açılmıyordu — 'Cannot read property ErrorBoundary of undefined' hatası. Kök neden: app/(tabs)/index.tsx içinde route dosyalarını (app/(tabs)/ranks, app/notifications) doğrudan import etmek expo-router'da circular route import hatasına yol açıyordu. Çözüm: ekran gövdeleri src/screens/ranks-screen.tsx ve src/screens/notifications-screen.tsx'e taşındı; route dosyaları ince re-export oldu; index artık src'den import ediyor. LÜTFEN SADECE FRONTEND test et: (1) Uygulama login ekranında açılıyor mu, misafir girişiyle feed yükleniyor mu (CRASH YOK). (2) Üst menü: solda arama kutusu, ortada rütbe rozeti, sağda 'Bildirimler' butonu görünüyor mu. (3) Arama kutusuna dokununca genişleyen arama overlay'i açılıyor, input'a yazınca kullanıcı/soru sonuçları geliyor, X ile kapanıyor. (4) Rütbe rozetine dokununca rütbe ekranı overlay olarak açılıyor. (5) Bildirimler butonuna dokununca bildirim ekranı overlay olarak açılıyor. (6) Regresyon: beğeni (kalp) butonu, kaydet, yorum hâlâ çalışıyor. Test credentials: swipedia-test@example.com / secret123. OTP/e-posta kodu okumaya çalışma."

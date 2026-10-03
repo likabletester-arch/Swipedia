@@ -76,6 +76,7 @@ export default function FeedScreen() {
   const [people, setPeople] = useState<Person[]>([]);
   const [note, setNote] = useState("");
   const [unreadCount, setUnreadCount] = useState(0);
+  const loadingMore = useRef(false);
 
   // Üst menü genişleyen overlay: arama / rütbe / bildirimler
   const [panel, setPanel] = useState<null | "search" | "rank" | "notif">(null);
@@ -120,6 +121,19 @@ export default function FeedScreen() {
       setRefreshing(false);
     }
   }, []);
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore.current || loading || error) return;
+    loadingMore.current = true;
+    try {
+      const next = await fetchFeed(8);
+      setQuestions((old) => [...old, ...next.filter((item) => !old.some((current) => current.question_id === item.question_id))]);
+    } catch {
+      // Mevcut kartlar görünmeye devam eder; sonraki swipe'da tekrar denenir.
+    } finally {
+      loadingMore.current = false;
+    }
+  }, [error, loading]);
 
   const loadedOnce = useRef(false);
   useFocusEffect(useCallback(() => {
@@ -276,6 +290,8 @@ export default function FeedScreen() {
           showsVerticalScrollIndicator={false}
           getItemLayout={(_, index) => ({ length: viewport, offset: viewport * index, index })}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(true); }} tintColor={colors.onSurfaceInverse} />}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.6}
           renderItem={({ item }) => (
             <QuizCard
               question={item}

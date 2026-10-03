@@ -24,6 +24,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, EmailStr, Field
+from pymongo import UpdateOne
 from starlette.middleware.cors import CORSMiddleware
 
 ROOT_DIR = Path(__file__).parent
@@ -33,6 +34,7 @@ mongo_url = os.environ["MONGO_URL"]
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ["DB_NAME"]]
 SESSION_DAYS = 7
+FEED_BATCH_MAX = 20
 
 app = FastAPI(title="Swipedia API")
 api_router = APIRouter(prefix="/api")
@@ -591,13 +593,19 @@ async def seed_database() -> None:
     await db.notifications.create_index("notification_id", unique=True)
     await db.verification_codes.create_index("expires_at", expireAfterSeconds=0)
     await db.verification_codes.create_index([("ckey", 1), ("purpose", 1)])
+    await db.questions.create_index([
+        ("is_published", 1), ("is_active", 1), ("is_hidden", 1),
+        ("is_deleted", 1), ("category", 1), ("feed_random", 1),
+    ])
+    await db.feed_seen.create_index([("user_id", 1), ("cycle_key", 1), ("question_id", 1)], unique=True)
+    await db.feed_cycle_state.create_index([("user_id", 1), ("cycle_key", 1)], unique=True)
 
 
 @app.on_event("startup")
 async def startup_db() -> None:
     await seed_database()
     try:
-        await ensure_official_content()
+        await ensure_bootstrap_admin()
     except Exception as exc:  # seed başarısız olsa bile API ayağa kalkar
         logger.warning("Official content seed failed: %s", exc)
     try:
@@ -606,73 +614,40 @@ async def startup_db() -> None:
         logger.warning("Object storage init failed: %s", exc)
 
 
-async def ensure_official_content() -> None:
-    """Production Atlas gibi boş bir veritabanında admin hesabını ve 750 resmî soruyu
-    idempotent şekilde oluşturur. Mevcut veriyi ASLA silmez; yalnızca eksikse ekler."""
-    patch = {"name": "Swipedia", "avatar": "app_logo", "verified": True, "is_admin": True}
-    admin = await db.users.find_one({"username": "swipedia"})
-    admin_password = os.environ.get("ADMIN_PASSWORD", "swipedia123")
+async def ensure_bootstrap_admin() -> None:
+    """Boş veritabanı için yalnızca sunucu ortamından gelen tek gerçek admini oluşturur.
+    Soru eklemez, kullanıcıları veya içerikleri silmez."""
+    email = os.environ["ADMIN_EMAIL"].strip().lower()
+    username = os.environ.get("ADMIN_USERNAME", "Swipedia").strip() or "Swipedia"
+    name = os.environ.get("ADMIN_NAME", "Swipedia").strip() or "Swipedia"
+    password = os.environ["ADMIN_PASSWORD"]
+    admin = await db.users.find_one({"email": email})
+    patch = {
+        "name": name,
+        "username": username,
+        "provider": "password",
+        "password_hash": bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode(),
+        "avatar": "app_logo",
+        "bio": "Resmî Swipedia hesabı.",
+        "verified": True,
+        "email_verified": True,
+        "is_admin": True,
+        "role": "admin",
+        "points": 0,
+        "point_progress": 0,
+        "correct_count": 0,
+        "saved_count": 0,
+    }
     if admin:
         await db.users.update_one({"user_id": admin["user_id"]}, {"$set": patch})
-    else:
-        admin = {
-            "user_id": f"user_{uuid.uuid4().hex[:12]}",
-            "username": "swipedia",
-            "email": "official@swipedia.app",
-            "provider": "password",
-            "password_hash": bcrypt.hashpw(admin_password.encode(), bcrypt.gensalt()).decode(),
-            "bio": "Resmî Swipedia hesabı.",
-            "points": 0.0,
-            "point_progress": 0,
-            "correct_count": 0,
-            "saved_count": 0,
-            "created_at": now_utc(),
-            **patch,
-        }
-        await db.users.insert_one(admin.copy())
-        logger.info("Resmî admin hesabı oluşturuldu (@swipedia)")
-
-    # Admin hesabının giriş yapabilmesi için şifresi yoksa ekle (eski kayıtlar için)
-    if not admin.get("password_hash"):
-        await db.users.update_one(
-            {"user_id": admin["user_id"]},
-            {"$set": {"password_hash": bcrypt.hashpw(admin_password.encode(), bcrypt.gensalt()).decode()}},
-        )
-
-    # Resmî sorular zaten varsa tekrar ekleme (idempotent)
-    existing = await db.questions.count_documents({"author_id": admin["user_id"]})
-    if existing > 0:
         return
-
-    data_file = ROOT_DIR / "seed_data" / "official_questions.json"
-    if not data_file.exists():
-        logger.warning("Resmî soru dosyası bulunamadı: %s", data_file)
-        return
-    data = json.loads(data_file.read_text(encoding="utf-8"))
-    base = now_utc()
-    docs = [{
-        "question_id": f"q_{uuid.uuid4().hex[:12]}",
-        "category": q["category"],
-        "text": q["text"],
-        "options": q["options"],
-        "correct_index": q["correct_index"],
-        "explanation": "",
-        "difficulty": q.get("difficulty", "orta"),
-        "background": None,
-        "author_id": admin["user_id"],
-        "author_name": "Swipedia",
-        "author_username": "swipedia",
-        "author_avatar": "app_logo",
-        "author_verified": True,
-        "likes": 0,
-        "saves_count": 0,
-        "shares_count": 0,
-        "comments_count": 0,
-        "created_at": base - timedelta(seconds=index),
-    } for index, q in enumerate(data)]
-    if docs:
-        await db.questions.insert_many(docs)
-        logger.info("Resmî %d soru production veritabanına eklendi", len(docs))
+    await db.users.insert_one({
+        "user_id": f"user_{uuid.uuid4().hex[:12]}",
+        "email": email,
+        "created_at": now_utc(),
+        **patch,
+    })
+    logger.info("Bootstrap admin hesabı oluşturuldu")
 
 
 @api_router.get("/")
@@ -684,13 +659,18 @@ async def root() -> Dict[str, str]:
 
 @api_router.post("/auth/register")
 async def register(credentials: Credentials) -> Dict[str, Any]:
-    email = str(credentials.email).lower()
+    """Eski uygulama sürümleri için tek-adımlı kayıt uyumluluğu.
+    Güncel mobil ekran iki adımlı request-code/verify akışını kullanır."""
+    email = credentials.identifier.strip().lower()
+    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+        raise HTTPException(status_code=422, detail="Kayıt için geçerli bir e-posta gir")
+    validate_password(credentials.password)
     if await db.users.find_one({"email": email}, {"_id": 0}):
         raise HTTPException(status_code=409, detail="Bu e-posta zaten kayıtlı")
     user = {
         "user_id": f"user_{uuid.uuid4().hex[:12]}",
         "email": email,
-        "name": credentials.name or email.split("@")[0].title(),
+        "name": email.split("@")[0].title(),
         "username": await unique_username(email.split("@")[0]),
         "password_hash": bcrypt.hashpw(credentials.password.encode(), bcrypt.gensalt()).decode(),
         "provider": "password",
@@ -699,6 +679,8 @@ async def register(credentials: Credentials) -> Dict[str, Any]:
         "correct_count": 0,
         "saved_count": 0,
         "bio": "Meraklı bir Swipedia öğrencisi.",
+        "is_published": True,
+        "is_active": True,
         "created_at": now_utc(),
     }
     await db.users.insert_one(user.copy())
@@ -778,7 +760,12 @@ async def login(credentials: Credentials) -> Dict[str, Any]:
     ident = credentials.identifier.strip()
     phone = re.sub(r"\s+", "", ident)
     user = await db.users.find_one(
-        {"$or": [{"email": ident.lower()}, {"username": ident.lower()}, {"phone": phone}]},
+        {"$or": [
+            {"email": ident.lower()},
+            {"username": ident.lower()},
+            {"username": {"$regex": f"^{re.escape(ident)}$", "$options": "i"}},
+            {"phone": phone},
+        ]},
         {"_id": 0},
     )
     if not user or not user.get("password_hash") or not bcrypt.checkpw(credentials.password.encode(), user["password_hash"].encode()):
@@ -1006,9 +993,96 @@ async def confirm_change(payload: ContactChangeVerify, user: Dict[str, Any] = De
 
 # ---------- Feed / Questions ----------
 
+def published_question_filter(category: Optional[str] = None) -> Dict[str, Any]:
+    filters: Dict[str, Any] = {
+        "is_published": True,
+        "is_active": True,
+        "is_hidden": False,
+        "is_deleted": False,
+    }
+    if category and category.lower() not in ("all", "tümü", "tumu"):
+        filters["category"] = category
+    return filters
+
+
+async def random_feed_questions(user_id: Optional[str], category: Optional[str], limit: int) -> List[Dict[str, Any]]:
+    filters = published_question_filter(category)
+    if not user_id:
+        return await db.questions.aggregate([
+            {"$match": filters},
+            {"$sample": {"size": limit}},
+            {"$project": {"_id": 0}},
+        ]).to_list(limit)
+
+    cycle_key = (category or "all").strip().lower() or "all"
+    state = await db.feed_cycle_state.find_one({"user_id": user_id, "cycle_key": cycle_key}, {"_id": 0})
+    last_question_id = (state or {}).get("last_question_id", "")
+    seen_count = await db.feed_seen.count_documents({"user_id": user_id, "cycle_key": cycle_key})
+    available_count = await db.questions.count_documents(filters)
+    if available_count == 0:
+        return []
+    if seen_count >= available_count:
+        await db.feed_seen.delete_many({"user_id": user_id, "cycle_key": cycle_key})
+        seen_count = 0
+
+    pivot = secrets.randbits(53) / float(1 << 53)
+    candidate_limit = min(max(limit * 16, 96), 240)
+
+    async def read_window(operator: str) -> List[Dict[str, Any]]:
+        query = {**filters, "feed_random": {operator: pivot}}
+        pipeline = [
+            {"$match": query},
+            {"$sort": {"feed_random": 1}},
+            {"$limit": candidate_limit},
+            {"$lookup": {
+                "from": "feed_seen",
+                "let": {"qid": "$question_id"},
+                "pipeline": [{"$match": {"$expr": {"$and": [
+                    {"$eq": ["$question_id", "$$qid"]},
+                    {"$eq": ["$user_id", user_id]},
+                    {"$eq": ["$cycle_key", cycle_key]},
+                ]}}}],
+                "as": "already_seen",
+            }},
+            {"$match": {"already_seen": {"$eq": []}}},
+            {"$project": {"_id": 0, "already_seen": 0}},
+        ]
+        return await db.questions.aggregate(pipeline).to_list(candidate_limit)
+
+    candidates = await read_window("$gte")
+    if len(candidates) < limit:
+        candidates.extend(await read_window("$lt"))
+    candidates = [item for item in candidates if item["question_id"] != last_question_id]
+    if not candidates and last_question_id:
+        # Havuz tek soruluksa boş ekran yerine aynı soruyu gösterebil.
+        candidates = await read_window("$gte")
+    selected = candidates[:limit]
+    if not selected and seen_count:
+        await db.feed_seen.delete_many({"user_id": user_id, "cycle_key": cycle_key})
+        return await random_feed_questions(user_id, category, limit)
+    if not selected:
+        return []
+
+    await db.feed_seen.bulk_write([
+        UpdateOne(
+            {"user_id": user_id, "cycle_key": cycle_key, "question_id": item["question_id"]},
+            {"$setOnInsert": {"created_at": now_utc()}},
+            upsert=True,
+        ) for item in selected
+    ])
+    await db.feed_cycle_state.update_one(
+        {"user_id": user_id, "cycle_key": cycle_key},
+        {"$set": {"last_question_id": selected[-1]["question_id"], "updated_at": now_utc()}},
+        upsert=True,
+    )
+    return selected
+
+
 @api_router.get("/feed")
-async def feed(request: Request) -> List[Dict[str, Any]]:
+async def feed(request: Request, limit: int = 12, category: Optional[str] = None) -> List[Dict[str, Any]]:
     user = await get_optional_user(request)
+    limit = max(1, min(limit, FEED_BATCH_MAX))
+    category = category.strip() if category else None
     saved_ids = set()
     liked_ids = set()
     if user:
@@ -1016,7 +1090,7 @@ async def feed(request: Request) -> List[Dict[str, Any]]:
         saved_ids = {item["question_id"] for item in saved}
         liked = await db.question_likes.find({"user_id": user["user_id"]}, {"_id": 0, "question_id": 1}).to_list(400)
         liked_ids = {item["question_id"] for item in liked}
-    questions = await db.questions.find({}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    questions = await random_feed_questions(user["user_id"] if user else None, category, limit)
     return [question_public(item, item["question_id"] in saved_ids, item["question_id"] in liked_ids) for item in questions]
 
 
@@ -1136,6 +1210,11 @@ async def create_question(payload: QuestionCreate, user: Dict[str, Any] = Depend
         "saves_count": 0,
         "shares_count": 0,
         "comments_count": 0,
+        "is_published": True,
+        "is_active": True,
+        "is_hidden": False,
+        "is_deleted": False,
+        "feed_random": secrets.randbits(53) / float(1 << 53),
         "created_at": now_utc(),
     }
     await db.questions.insert_one(question.copy())

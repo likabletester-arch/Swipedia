@@ -35,6 +35,12 @@ TikTok/Reels tarzı dikey kaydırmalı bir öğrenme uygulaması: kullanıcılar
 ## Implemented (2026-10-02) — Faz 2
 - Başka kullanıcıların profili: Akışta sorunun sol altındaki yazar bloğuna dokununca `app/user/[id].tsx` açılır; sadece o kişinin paylaştığı sorular grid olarak gösterilir. "Kaydedilenler" sekmesi yalnızca kullanıcının kendi profilinde (`(tabs)/profile.tsx`). Backend: `GET /api/users/{user_id}/profile` (herkese açık, kullanıcı + paylaştığı sorular).
 
+## Implemented (2026-10-03) — Rastgele akış ve temiz başlangıç
+- `/api/feed`: yalnızca `is_published=true`, `is_active=true`, `is_hidden=false`, `is_deleted=false` soruları kullanıcı oturumunda tekrar etmeden rastgele seçer; kategori ve küçük batch desteği vardır.
+- Akış, başlangıçta küçük bir batch yükler ve swipe sonuna yaklaşınca arka planda yeni batch ekler; tüm soru havuzunu frontend'e çekmez.
+- 750 soru otomatik seedi kaldırıldı. Kontrollü `reset_clean_start.py` komutu tüm test verisini temizler ve yalnızca `.env` ile tanımlı gerçek admin hesabını bırakır.
+- Doğrulama: random akışta 3 batch boyunca tekrar yok, Bilim kategori filtresi doğru, gizli/pasif kayıtlar dışarıda; temiz son veri durumu 1 admin / 0 normal kullanıcı / 0 soru / 0 oturum.
+
 ## Prioritized Backlog
 - **P0**: Android production APK: gerçek production backend URL'sini build ortamına `EXPO_PUBLIC_BACKEND_URL` olarak tanımla, Atlas üretim bağlantısını doğrula ve APK'yı bu URL ile yeniden oluştur.
 - **P0**: Rütbe sistemi UI'ı (kullanıcı rütbe isimlerini/eşiklerini verecek — bekleniyor)

@@ -71,6 +71,19 @@ export type Notification = {
 
 let memoryToken: string | null = null;
 
+function apiErrorMessage(status: number, body: unknown): string {
+  const detail = (body as { detail?: unknown })?.detail;
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    return detail.map((item) => {
+      const error = item as { loc?: (string | number)[]; msg?: string };
+      const field = error.loc?.filter((part) => part !== "body").at(-1);
+      return field ? `${String(field)}: ${error.msg || "Geçersiz değer"}` : (error.msg || "Geçersiz değer");
+    }).join("; ");
+  }
+  return status === 422 ? "Girdiğin bilgileri kontrol et" : "Bir şeyler ters gitti";
+}
+
 export async function getToken() {
   if (memoryToken) return memoryToken;
   memoryToken = await storage.secureGet<string | null>(TOKEN_KEY, null);
@@ -97,7 +110,7 @@ export async function api<T>(path: string, init: RequestInit = {}, requiresAuth 
     await clearToken();
   }
   const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body.detail || "Bir şeyler ters gitti");
+  if (!response.ok) throw new Error(apiErrorMessage(response.status, body));
   return body as T;
 }
 
@@ -171,7 +184,11 @@ export async function currentUser() {
   }
 }
 
-export const fetchFeed = () => api<Question[]>("/feed");
+export const fetchFeed = (limit = 12, category?: string) => {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (category) params.set("category", category);
+  return api<Question[]>(`/feed?${params.toString()}`);
+};
 export const fetchComments = (questionId: string) => api<Comment[]>(`/questions/${questionId}/comments`);
 export const addComment = (questionId: string, text: string) => api<Comment>(`/questions/${questionId}/comments`, { method: "POST", body: JSON.stringify({ text }) }, true);
 export const answerQuestion = (questionId: string, optionIndex: number) =>

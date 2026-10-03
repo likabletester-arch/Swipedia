@@ -1,0 +1,68 @@
+{
+  "summary": "Both backend and frontend scope tested against public preview URL. Core feed behaviors pass: admin login opens feed, /api/feed excludes non-visible questions, 3 consecutive batches in one session do not repeat IDs, and category=Bilim returns only Bilim. Guest login works on API and UI. Register screen renders and submits, but validation error rendering is poor ([object Object]). Also found a backend regression on legacy POST /api/auth/register (500).",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/auth/register",
+        "issue": "Returns 500 Internal Server Error when payload matches Credentials shape (identifier/password). RCA from backend log: register() uses Credentials model but accesses credentials.email and credentials.name, causing AttributeError.",
+        "priority": "CRITICAL"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "Push integration (/api/v1/push relay used by notifications)",
+        "issue": "Backend logs repeatedly show push trigger 401 Unauthorized (EMERGENT_PUSH_KEY placeholder). Notification persistence works, push delivery is not working."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Register screen error state",
+        "issue": "On register submit validation failure (422), UI displays '[object Object]' instead of user-readable message.",
+        "testID": "auth-error-text",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {
+        "component": "Feed screen styling",
+        "issue": "RN Web warnings continue: shadow* deprecated (use boxShadow), pointerEvents prop deprecated (use style.pointerEvents)."
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_swipedia_v8_feed_batches.py",
+    "/app/test_reports/pytest/pytest_v8_feed_batches.xml",
+    "/app/test_reports/frontend_load_mobile.jpg",
+    "/app/test_reports/admin_feed_mobile.jpg",
+    "/app/test_reports/register_regression_mobile.jpg"
+  ],
+  "action_items": [
+    "Fix POST /api/auth/register contract mismatch in backend/server.py (request model vs accessed fields).",
+    "Improve frontend API error parsing for FastAPI validation arrays so auth-error-text shows a proper message instead of [object Object].",
+    "Set valid push key or guard push relay warnings if push is intentionally disabled in this environment.",
+    "Main agent can run reset_clean_start.py after review to return DB to 1 admin / 0 question clean state (as planned)."
+  ],
+  "critical_code_review_comments": [
+    "Feed randomization and cycle logic in random_feed_questions() correctly tracks user+category with feed_seen/feed_cycle_state and passed non-repeat 3-batch test in fresh session.",
+    "published_question_filter() enforces is_published=true, is_active=true, is_hidden=false, is_deleted=false; API behavior validated against DB-side excluded question IDs.",
+    "frontend/src/api.ts still contains legacy register() calling /auth/register, which currently maps to broken backend path and can trigger 500 for legacy clients.",
+    "Frontend backend URL is read from EXPO_PUBLIC_BACKEND_URL/Constants extra backendUrl; this differs from EXPO_BACKEND_URL wording in platform guidance, but runtime routing works in preview."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_swipedia_v8_feed_batches.py",
+    "/app/test_reports/iteration_5.json"
+  ],
+  "success_rate": {
+    "backend": "86% (6/7 checked behaviors passed; 1 critical legacy endpoint failure)",
+    "frontend": "90% (core auth/feed/flatlist flows passed; register error rendering bug remains)"
+  },
+  "seed_data_creation": "No permanent seed script run. Test created temporary guest sessions only; main agent already plans cleanup with reset_clean_start.py.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Use /app/backend/tests/test_swipedia_v8_feed_batches.py as regression baseline for feed filters + non-repeat batches + Bilim filter. Re-test POST /api/auth/register after backend fix and verify register UI message rendering for 422 details.",
+  "rca_of_issue": "POST /api/auth/register uses Credentials schema (identifier,password) but implementation expects credentials.email/name/password. When called with identifier/password, server throws AttributeError in register() at backend/server.py:662 and returns 500. Register UI '[object Object]' issue comes from frontend error handling showing non-string FastAPI detail payload without normalization."
+}
