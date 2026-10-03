@@ -54,6 +54,7 @@ TikTok/Reels tarzı dikey kaydırmalı bir öğrenme uygulaması: kullanıcılar
 - `app.config.js`, release bundle içindeki `extra.backendUrl` değerini build ortamındaki `EXPO_PUBLIC_BACKEND_URL` üzerinden alır. `eas.json` içindeki `production-apk` profili production ortamını kullanır.
 - Doğrulanan production API origin: `https://micro-genius-3.emergentapps.tr`; istemci mevcut biçimde yalnızca bir kez `/api` ekler. TLS, health, guest login ve admin login dış ağdan doğrulandı.
 - Fiziksel APK üretimi bu çalışma ortamında komut engeli nedeniyle başlatılamadı; Publish sonrası platform build arayüzünden oluşturulup cihazda tekrar test edilmelidir.
+- Release sertleştirmesi: `production-apk` profili `APP_VARIANT=production` ile çalışır; config üretim origin’i dışında bir `EXPO_PUBLIC_BACKEND_URL` görürse build'i durdurur. API istemcisi yalnızca gömülü config origin'ini kullanır; preview env fallback'i yoktur.
 
 ## Prioritized Backlog
 - **P0**: Android production APK: gerçek production backend URL'sini build ortamına `EXPO_PUBLIC_BACKEND_URL` olarak tanımla, Atlas üretim bağlantısını doğrula ve APK'yı bu URL ile yeniden oluştur.

@@ -3,6 +3,9 @@
     "production-apk": {
       "environment": "production",
       "distribution": "internal",
+      "env": {
+        "APP_VARIANT": "production"
+      },
       "android": {
         "buildType": "apk"
       }

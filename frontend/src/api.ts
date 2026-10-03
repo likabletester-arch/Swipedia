@@ -4,7 +4,7 @@ import { Platform } from "react-native";
 import { storage } from "@/src/utils/storage";
 
 export const TOKEN_KEY = "swipedia.session_token";
-const backendUrl = String(Constants.expoConfig?.extra?.backendUrl || process.env.EXPO_PUBLIC_BACKEND_URL || "").replace(/\/$/, "");
+const backendUrl = String(Constants.expoConfig?.extra?.backendUrl || "").replace(/\/$/, "");
 
 export type User = {
   user_id: string;
