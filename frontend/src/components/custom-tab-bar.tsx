@@ -67,7 +67,7 @@ export function CustomTabBar({ state, navigation }: BottomTabBarProps) {
 
         if (item.name === "index") {
           return (
-            <Pressable key={item.name} testID="tab-kesfet" onPress={onPress} style={({ pressed }) => [styles.centerSlot, pressed && { opacity: 0.85 }]}>
+            <Pressable key={item.name} testID="tab-explore" onPress={onPress} style={({ pressed }) => [styles.centerSlot, pressed && { opacity: 0.85 }]}>
               <View style={[styles.centerButton, { backgroundColor: colors.brandPrimary, shadowColor: colors.brandPrimary }]}>
                 <AnimatedIcon name={item.icon} color={colors.onBrandPrimary} size={28} focused={focused} />
               </View>
@@ -108,6 +108,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
     gap: 3,
     marginBottom: 6,
+    minHeight: 64,
   },
   // Merkez Keşfet butonu: diğerlerinden %25 daha büyük (56 vs 44).
   centerButton: {

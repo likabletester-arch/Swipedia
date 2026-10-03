@@ -8,7 +8,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 
 import { AuthProvider } from "@/src/auth";
 import { ErrorBoundary } from "@/src/components/error-boundary";
-import { LanguageProvider } from "@/src/i18n";
+import { LanguageProvider, useI18n } from "@/src/i18n";
 import { isExpoGo } from "@/src/push";
 import { ThemeProvider } from "@/src/theme";
 import { queryClient } from "@/src/query-client";
@@ -17,8 +17,9 @@ import { queryClient } from "@/src/query-client";
 // and agent works as expected.
 LogBox.ignoreAllLogs(true);
 
-export default function RootLayout() {
+function PushSetup() {
   const router = useRouter();
+  const { t } = useI18n();
 
   useEffect(() => {
     // Expo Go SDK 53+ uzaktan push desteklemez; modülü sadece gerçek build'de yükle.
@@ -73,11 +74,11 @@ export default function RootLayout() {
       const oneWeek = 7 * 24 * 60 * 60 * 1000;
       if (lastNudge && Date.now() - Number(lastNudge) <= oneWeek) return;
       Alert.alert(
-        "Bildirimleri aç",
-        "Yeni sorular, yorumlar ve takip ettiğin kişilerden haberdar olmak için bildirimlere izin ver.",
+        t("push.enableTitle"),
+        t("push.enableBody"),
         [
-          { text: "Daha sonra", style: "cancel", onPress: () => AsyncStorage.setItem("pushNudgeAt", String(Date.now())) },
-          { text: "Ayarları aç", onPress: () => { AsyncStorage.setItem("pushNudgeAt", String(Date.now())); Linking.openSettings(); } },
+          { text: t("push.later"), style: "cancel", onPress: () => AsyncStorage.setItem("pushNudgeAt", String(Date.now())) },
+          { text: t("push.openSettings"), onPress: () => { AsyncStorage.setItem("pushNudgeAt", String(Date.now())); Linking.openSettings(); } },
         ],
       );
     })();
@@ -85,7 +86,12 @@ export default function RootLayout() {
     return () => {
       tapSub?.remove();
     };
-  }, [router]);
+  }, [router, t]);
+
+  return null;
+}
+
+export default function RootLayout() {
 
   // One app level ErrorBoundary; a render crash shows a reload screen
   // instead of a blank app.
@@ -95,6 +101,7 @@ export default function RootLayout() {
         <KeyboardProvider>
           <ThemeProvider>
             <LanguageProvider>
+            <PushSetup />
             <AuthProvider>
               <Stack screenOptions={{ headerShown: false }} />
             </AuthProvider>

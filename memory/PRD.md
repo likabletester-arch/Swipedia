@@ -41,6 +41,11 @@ TikTok/Reels tarzı dikey kaydırmalı bir öğrenme uygulaması: kullanıcılar
 - 750 soru otomatik seedi kaldırıldı. Kontrollü `reset_clean_start.py` komutu tüm test verisini temizler ve yalnızca `.env` ile tanımlı gerçek admin hesabını bırakır.
 - Doğrulama: random akışta 3 batch boyunca tekrar yok, Bilim kategori filtresi doğru, gizli/pasif kayıtlar dışarıda; temiz son veri durumu 1 admin / 0 normal kullanıcı / 0 soru / 0 oturum.
 
+## Implemented (2026-10-03) — Dil sistemi
+- Arayüz yalnızca `tr-TR` (Türkçe) ve `en-US` (American English) destekler. Eski kayıtlı `tr`/`en` tercihleri güvenle yeni kodlara taşınır; diğer tüm değerler iki dilden uygun olana düşer.
+- Ayarlar ekranında yalnızca iki dil seçeneği vardır; tercih güvenli depolamada kalır. Rütbeler, yasal metinler, giriş/kayıt, Keşfet ve ayarlar iki dili destekler.
+- Doğrulama: TR↔EN-US değişimi, uygulama yeniden açılışında kalıcılık, giriş/kayıt, boş Keşfet, yasal bağlantılar ve eksik metin kontrolü mobil testten geçti.
+
 ## Prioritized Backlog
 - **P0**: Android production APK: gerçek production backend URL'sini build ortamına `EXPO_PUBLIC_BACKEND_URL` olarak tanımla, Atlas üretim bağlantısını doğrula ve APK'yı bu URL ile yeniden oluştur.
 - **P0**: Rütbe sistemi UI'ı (kullanıcı rütbe isimlerini/eşiklerini verecek — bekleniyor)

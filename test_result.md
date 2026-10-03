@@ -157,6 +157,24 @@ backend:
       - working: "NA"
         comment: "ProfileUpdate.bio zaten vardı; public_user bio default '' yapıldı. PATCH /users/me bio kaydeder."
 frontend:
+  - task: "Yalnızca Türkçe ve American English dil sistemi"
+    file: "/app/frontend/src/i18n.tsx, /app/frontend/app/settings.tsx, /app/frontend/src/ranks.ts, /app/frontend/src/creator-ranks.ts, /app/frontend/src/legal.ts"
+    implemented: true
+    needs_retesting: false
+    status_history:
+      - working: true
+        comment: "Dil seçenekleri yalnızca tr-TR ve en-US. Eski saklanan tr/en değerleri yeni kodlara taşınır, diğer değerler cihaz diline göre iki desteklenen dilden birine düşer. Ayarlar ekranında iki seçenek ve iki yönlü değişim manuel mobil testte geçti."
+      - working: true
+        comment: "Test otomasyonunu engelleyen yerelleştirilmiş Explore testID'si `tab-explore` olarak sabitlendi; Settings→geri→Explore ile Türkçe boş akış ve tekrar English Settings akışı manuel mobil testte geçti."
+      - working: true
+        comment: "Kapsamlı mobil test: yalnızca iki dil seçeneği, TR→EN→TR geçişi, uygulama yeniden açılışında kalıcılık, giriş/kayıt, boş Keşfet, Ayarlar ve yasal bağlantılar geçti. Translation key/undefined/boş metin ve UK spelling kalıntısı bulunmadı."
+  - task: "İki dilli yardımcı metin ve erişilebilirlik tutarlılığı"
+    file: "/app/frontend/app/_layout.tsx, /app/frontend/app/login.tsx, /app/frontend/app/settings.tsx, /app/frontend/src/i18n.tsx"
+    implemented: true
+    needs_retesting: false
+    status_history:
+      - working: true
+        comment: "Push izin uyarısı iki dile bağlandı; parola uzunluk metinleri backend kuralıyla 8 karaktere eşitlendi; yasal bağlantıların dokunma alanı 44px yapıldı. Lint geçti."
   - task: "Feed beğeni butonu + stok avatar seçici + bio alanı + takip butonu"
     file: "/app/frontend/app/(tabs)/index.tsx, /app/frontend/app/settings.tsx, /app/frontend/app/user/[id].tsx, /app/frontend/app/(tabs)/profile.tsx"
     implemented: true
@@ -168,6 +186,7 @@ metadata:
   created_by: "main_agent"
 test_plan:
   current_focus:
+    - "Yalnızca Türkçe ve American English dil sistemi"
     - "Yayınlanmış sorular için oturum-bazlı rastgele akış"
     - "Temiz başlangıç ve tek gerçek admin"
     - "Soru beğeni (like) toggle + feed liked flag"
@@ -175,6 +194,10 @@ test_plan:
     - "Profil biyografisi (PATCH /users/me bio)"
   stuck_tasks: []
 agent_communication:
+  - agent: "main"
+    message: "DİL TESTİ: Sadece testID lang-option-tr-TR ve lang-option-en-US görünmeli; üçüncü lang-option olmamalı. Ayarlardan TR→EN-US→TR geçişini, uygulama yeniden açıldıktan sonra seçimin korunmasını, login ve boş feed ekranındaki ana metinleri, settings/legal ekranı metinlerini test et. Uygulama veritabanında yalnızca gerçek admin ve boş soru havuzu var; test sırasında yeni kullanıcı/soru oluşturma. Testte oluşan admin session kayıtlarını main agent sonradan temizleyecek."
+  - agent: "main"
+    message: "RETEST: CustomTabBar Explore kimliği artık `tab-explore`; Settings ekranından önce `settings-back-button` ile Profile'a dön, ardından `tab-explore` kullan. TR→EN-US→TR, dilin yeniden açılışta korunması, login/register, boş Explore, Settings ve legal metinlerini tamamla. Yeni kullanıcı veya soru oluşturma; test bitince main agent admin session kayıtlarını temizleyecek."
   - agent: "main"
     message: "KAPSAMLI TEST: Mevcut geçici API test verisiyle (24 soru; 1 gizli, 1 pasif) backend random feed test edildi. Şimdi (1) admin girişinden sonra akışın yüklendiğini, (2) 3 batch'te soru ID tekrarının olmadığını, (3) Bilim kategori filtresinin yalnızca Bilim döndürdüğünü, (4) gizli/pasif soru görünmediğini, (5) mevcut login/signup/misafir akışlarının bozulmadığını, (6) temiz başlangıç komutundan sonra 1 admin / 0 normal kullanıcı / 0 soru kaldığını test et. Admin credential /app/memory/test_credentials.md içindedir. TEST BİTİNCE main agent geçici tüm veriyi reset_clean_start.py ile silecektir; yeni kalıcı veri oluşturma."
   - agent: "main"

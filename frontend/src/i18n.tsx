@@ -3,23 +3,17 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 
 import { storage } from "@/src/utils/storage";
 
-export const SUPPORTED_LANGS = ["tr", "en", "de", "ru", "it", "fr", "ar", "zh"] as const;
+export const SUPPORTED_LANGS = ["tr-TR", "en-US"] as const;
 export type Lang = (typeof SUPPORTED_LANGS)[number];
 
 const LANG_KEY = "swipedia.lang";
 
 export const LANG_NAMES: Record<Lang, string> = {
-  tr: "Türkçe",
-  en: "English",
-  de: "Deutsch",
-  ru: "Русский",
-  it: "Italiano",
-  fr: "Français",
-  ar: "العربية",
-  zh: "中文",
+  "tr-TR": "Türkçe",
+  "en-US": "American English",
 };
 
-type Dict = Record<string, Record<Lang, string>>;
+type Dict = Record<string, Record<string, string>>;
 
 const DICT: Dict = {
   "app.loading": { tr: "Swipedia açılıyor…", en: "Opening Swipedia…", de: "Swipedia öffnet…", ru: "Открываем Swipedia…", it: "Apertura di Swipedia…", fr: "Ouverture de Swipedia…", ar: "يتم فتح Swipedia…", zh: "正在打开 Swipedia…" },
@@ -43,7 +37,7 @@ const DICT: Dict = {
   "auth.register": { tr: "Kayıt ol", en: "Sign up", de: "Registrieren", ru: "Регистрация", it: "Registrati", fr: "S'inscrire", ar: "إنشاء حساب", zh: "注册" },
   "auth.name": { tr: "Adın", en: "Your name", de: "Dein Name", ru: "Ваше имя", it: "Il tuo nome", fr: "Ton nom", ar: "اسمك", zh: "你的名字" },
   "auth.email": { tr: "E-posta", en: "Email", de: "E-Mail", ru: "Почта", it: "Email", fr: "E-mail", ar: "البريد الإلكتروني", zh: "邮箱" },
-  "auth.password": { tr: "Şifre (en az 6 karakter)", en: "Password (min 6 chars)", de: "Passwort (mind. 6 Zeichen)", ru: "Пароль (мин. 6 символов)", it: "Password (min 6 caratteri)", fr: "Mot de passe (min 6 caractères)", ar: "كلمة المرور (6 أحرف على الأقل)", zh: "密码（至少6位）" },
+  "auth.password": { tr: "Şifre (en az 8 karakter)", en: "Password (min 8 chars)", de: "Passwort (mind. 6 Zeichen)", ru: "Пароль (мин. 6 символов)", it: "Password (min 6 caratteri)", fr: "Mot de passe (min 6 caractères)", ar: "كلمة المرور (6 أحرف على الأقل)", zh: "密码（至少6位）" },
   "auth.submitLogin": { tr: "Merak etmeye başla", en: "Start exploring", de: "Loslegen", ru: "Начать", it: "Inizia a esplorare", fr: "Commencer", ar: "ابدأ الاستكشاف", zh: "开始探索" },
   "auth.submitRegister": { tr: "Hesabımı oluştur", en: "Create my account", de: "Konto erstellen", ru: "Создать аккаунт", it: "Crea il mio account", fr: "Créer mon compte", ar: "إنشاء حسابي", zh: "创建账户" },
   "auth.google": { tr: "Google ile devam et", en: "Continue with Google", de: "Mit Google fortfahren", ru: "Продолжить с Google", it: "Continua con Google", fr: "Continuer avec Google", ar: "المتابعة عبر Google", zh: "使用 Google 继续" },
@@ -243,7 +237,7 @@ const DICT: Dict = {
   "settings.newEmail": { tr: "Yeni e-posta", en: "New email", de: "Neue E-Mail", ru: "Новая почта", it: "Nuova email", fr: "Nouvel e-mail", ar: "بريد جديد", zh: "新邮箱" },
   "settings.newPhone": { tr: "Yeni telefon numarası", en: "New phone number", de: "Neue Telefonnummer", ru: "Новый номер", it: "Nuovo numero", fr: "Nouveau numéro", ar: "رقم جديد", zh: "新手机号" },
   "settings.currentPassword": { tr: "Mevcut şifre", en: "Current password", de: "Aktuelles Passwort", ru: "Текущий пароль", it: "Password attuale", fr: "Mot de passe actuel", ar: "كلمة المرور الحالية", zh: "当前密码" },
-  "settings.newPassword": { tr: "Yeni şifre (en az 6 karakter)", en: "New password (min 6 chars)", de: "Neues Passwort (mind. 6)", ru: "Новый пароль (мин. 6)", it: "Nuova password (min 6)", fr: "Nouveau mot de passe (min 6)", ar: "كلمة مرور جديدة (6 أحرف)", zh: "新密码（至少6位）" },
+  "settings.newPassword": { tr: "Yeni şifre (en az 8 karakter)", en: "New password (min 8 chars)", de: "Neues Passwort (mind. 6)", ru: "Новый пароль (мин. 6)", it: "Nuova password (min 6)", fr: "Nouveau mot de passe (min 6)", ar: "كلمة مرور جديدة (6 أحرف)", zh: "新密码（至少6位）" },
   "settings.verifyHint": { tr: "Güvenlik için mevcut e-postana ({email}) bir doğrulama kodu göndereceğiz.", en: "For security we'll send a code to your current email ({email}).", de: "Zur Sicherheit senden wir einen Code an {email}.", ru: "Для безопасности отправим код на {email}.", it: "Per sicurezza invieremo un codice a {email}.", fr: "Par sécurité, un code sera envoyé à {email}.", ar: "للأمان سنرسل رمزاً إلى {email}.", zh: "出于安全，我们会向 {email} 发送验证码。" },
   "settings.codeSentTo": { tr: "{email} adresine kod gönderildi", en: "Code sent to {email}", de: "Code an {email} gesendet", ru: "Код отправлен на {email}", it: "Codice inviato a {email}", fr: "Code envoyé à {email}", ar: "تم إرسال الرمز إلى {email}", zh: "验证码已发送至 {email}" },
   "settings.enterCode": { tr: "6 haneli kodu gir", en: "Enter the 6-digit code", de: "6-stelligen Code eingeben", ru: "Введите 6-значный код", it: "Inserisci il codice a 6 cifre", fr: "Saisis le code à 6 chiffres", ar: "أدخل الرمز المكوّن من 6 أرقام", zh: "输入6位验证码" },
@@ -252,7 +246,11 @@ const DICT: Dict = {
   "settings.save": { tr: "Kaydet", en: "Save", de: "Speichern", ru: "Сохранить", it: "Salva", fr: "Enregistrer", ar: "حفظ", zh: "保存" },
   "settings.changed": { tr: "Güncellendi", en: "Updated", de: "Aktualisiert", ru: "Обновлено", it: "Aggiornato", fr: "Mis à jour", ar: "تم التحديث", zh: "已更新" },
   "settings.passwordChanged": { tr: "Şifren güncellendi", en: "Password updated", de: "Passwort aktualisiert", ru: "Пароль обновлён", it: "Password aggiornata", fr: "Mot de passe mis à jour", ar: "تم تحديث كلمة المرور", zh: "密码已更新" },
-  "settings.passwordMismatch": { tr: "Şifre en az 6 karakter olmalı", en: "Password must be at least 6 characters", de: "Passwort mind. 6 Zeichen", ru: "Пароль минимум 6 символов", it: "Password almeno 6 caratteri", fr: "Mot de passe min 6 caractères", ar: "كلمة المرور 6 أحرف على الأقل", zh: "密码至少6位" },
+  "settings.passwordMismatch": { tr: "Şifre en az 8 karakter olmalı", en: "Password must be at least 8 characters", de: "Passwort mind. 6 Zeichen", ru: "Пароль минимум 6 символов", it: "Password almeno 6 caratteri", fr: "Mot de passe min 6 caractères", ar: "كلمة المرور 6 أحرف على الأقل", zh: "密码至少6位" },
+  "push.enableTitle": { tr: "Bildirimleri aç", en: "Turn on notifications", de: "", ru: "", it: "", fr: "", ar: "", zh: "" },
+  "push.enableBody": { tr: "Yeni sorular, yorumlar ve takip ettiklerinden haberdar olmak için bildirimlere izin ver.", en: "Allow notifications to stay updated on new questions, comments, and people you follow.", de: "", ru: "", it: "", fr: "", ar: "", zh: "" },
+  "push.later": { tr: "Daha sonra", en: "Later", de: "", ru: "", it: "", fr: "", ar: "", zh: "" },
+  "push.openSettings": { tr: "Ayarları aç", en: "Open settings", de: "", ru: "", it: "", fr: "", ar: "", zh: "" },
 
   "legal.terms": { tr: "Kullanım Koşulları", en: "Terms of Service", de: "Nutzungsbedingungen", ru: "Условия использования", it: "Termini di servizio", fr: "Conditions d'utilisation", ar: "شروط الخدمة", zh: "服务条款" },
   "legal.privacy": { tr: "Gizlilik", en: "Privacy", de: "Datenschutz", ru: "Конфиденциальность", it: "Privacy", fr: "Confidentialité", ar: "الخصوصية", zh: "隐私" },
@@ -270,9 +268,28 @@ const DICT: Dict = {
   "auth.gender_female": { tr: "Kadın", en: "Female", de: "Weiblich", ru: "Женский", it: "Donna", fr: "Femme", ar: "أنثى", zh: "女" },
 };
 
+// Önceki sürümlerdeki kullanılmayan yerel çevirileri bellekten kaldır.
+// Uygulama yalnızca iki yerel ayarı kullanır ve başka bir dile düşmez.
+for (const translation of Object.values(DICT)) {
+  delete translation.de;
+  delete translation.ru;
+  delete translation.it;
+  delete translation.fr;
+  delete translation.ar;
+  delete translation.zh;
+}
+
 function deviceLang(): Lang {
-  const code = getLocales()[0]?.languageCode?.toLowerCase() ?? "tr";
-  return (SUPPORTED_LANGS as readonly string[]).includes(code) ? (code as Lang) : "en";
+  const tag = getLocales()[0]?.languageTag?.toLowerCase() ?? "en-us";
+  return tag.startsWith("tr") ? "tr-TR" : "en-US";
+}
+
+function normalizeLang(value: string | null): Lang | null {
+  if (!value) return null;
+  const normalized = value.toLowerCase();
+  if (normalized === "tr" || normalized.startsWith("tr-")) return "tr-TR";
+  if (normalized === "en" || normalized.startsWith("en-")) return "en-US";
+  return null;
 }
 
 type I18nContextValue = {
@@ -283,20 +300,20 @@ type I18nContextValue = {
 };
 
 const I18nContext = createContext<I18nContextValue>({
-  lang: "tr",
+  lang: "tr-TR",
   ready: false,
   setLang: () => {},
   t: (key) => key,
 });
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Lang>("tr");
+  const [lang, setLangState] = useState<Lang>("tr-TR");
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     (async () => {
       const saved = await storage.secureGet<string | null>(LANG_KEY, null);
-      setLangState(saved && (SUPPORTED_LANGS as readonly string[]).includes(saved) ? (saved as Lang) : deviceLang());
+      setLangState(normalizeLang(saved) ?? deviceLang());
       setReady(true);
     })();
   }, []);
@@ -311,7 +328,8 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     ready,
     setLang,
     t: (key, vars) => {
-      let text = DICT[key]?.[lang] ?? DICT[key]?.tr ?? key;
+      const dictionaryLang = lang === "tr-TR" ? "tr" : "en";
+      let text = DICT[key]?.[dictionaryLang] ?? (lang === "tr-TR" ? "Metin bulunamadı" : "Text unavailable");
       if (vars) {
         for (const [name, val] of Object.entries(vars)) {
           text = text.replaceAll(`{${name}}`, String(val));

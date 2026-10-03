@@ -1,4 +1,4 @@
-// Swipedia yasal metinleri. Türkçe + İngilizce tam; diğer diller İngilizce'ye düşer.
+// Swipedia yasal metinleri yalnızca Türkçe ve American English destekler.
 // Boş alanlar belgedeki bilgilerle dolduruldu.
 
 export type LegalSection = { t: string; b: string };
@@ -166,7 +166,7 @@ const PRIVACY_TR: LegalDoc = {
 };
 
 export function getLegal(doc: "terms" | "privacy", lang: string): LegalDoc {
-  const isTr = lang === "tr";
+  const isTr = lang === "tr-TR";
   if (doc === "terms") return isTr ? TERMS_TR : TERMS_EN;
   return isTr ? PRIVACY_TR : PRIVACY_EN;
 }

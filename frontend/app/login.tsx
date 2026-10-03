@@ -308,9 +308,9 @@ export default function LoginScreen() {
         </View>
         <Text style={styles.legal}>{t("auth.legal")}</Text>
         <View style={styles.legalLinks}>
-          <Pressable testID="legal-terms-link" onPress={() => router.push("/legal?doc=terms")}><Text style={styles.legalLink}>{t("legal.terms")}</Text></Pressable>
+          <Pressable testID="legal-terms-link" onPress={() => router.push("/legal?doc=terms")} style={styles.legalTap}><Text style={styles.legalLink}>{t("legal.terms")}</Text></Pressable>
           <Text style={styles.legalSep}>|</Text>
-          <Pressable testID="legal-privacy-link" onPress={() => router.push("/legal?doc=privacy")}><Text style={styles.legalLink}>{t("legal.privacy")}</Text></Pressable>
+          <Pressable testID="legal-privacy-link" onPress={() => router.push("/legal?doc=privacy")} style={styles.legalTap}><Text style={styles.legalLink}>{t("legal.privacy")}</Text></Pressable>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -355,6 +355,7 @@ const useStyles = makeStyles((colors) => StyleSheet.create({
   guestText: { color: colors.brandPrimary, fontWeight: "800", fontSize: 10 },
   legal: { color: colors.muted, fontSize: 9, textAlign: "center", lineHeight: 14, marginTop: 20 },
   legalLinks: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 8 },
+  legalTap: { minHeight: 44, justifyContent: "center", paddingHorizontal: 4 },
   legalLink: { color: colors.onSurfaceSecondary, fontSize: 11, fontWeight: "600" },
   legalSep: { color: colors.muted, fontSize: 11 },
 }));

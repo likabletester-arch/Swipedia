@@ -45,5 +45,5 @@ export function creatorRankFor(count: number): CreatorProgress {
 }
 
 export function creatorRankName(rank: CreatorRank, lang: Lang): string {
-  return lang === "tr" ? rank.tr : rank.en;
+  return lang === "tr-TR" ? rank.tr : rank.en;
 }
