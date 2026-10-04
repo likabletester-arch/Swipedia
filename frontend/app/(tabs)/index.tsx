@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -12,6 +13,7 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -29,6 +31,7 @@ import {
   fetchPeople,
   fetchUnreadCount,
   fileUrl,
+  questionShareLink,
   sendMessage,
   toggleLike,
   toggleSave,
@@ -240,6 +243,27 @@ export default function FeedScreen() {
     }
   };
 
+  const copyQuestionLink = async () => {
+    if (!active) return;
+    try {
+      await Clipboard.setStringAsync(questionShareLink(active.question_id));
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      toast.show(t("feed.linkCopied"));
+    } catch {
+      toast.show(t("feed.shareFailed"));
+    }
+  };
+
+  const shareOutside = async () => {
+    if (!active) return;
+    try {
+      const link = questionShareLink(active.question_id);
+      await Share.share({ message: t("feed.externalShareText", { question: active.text, link }) });
+    } catch {
+      toast.show(t("feed.shareFailed"));
+    }
+  };
+
   if (!user) return null;
   const rank = rankFor(user.points);
 
@@ -412,6 +436,7 @@ export default function FeedScreen() {
             <View style={styles.sheet} testID="share-sheet">
               <View style={styles.sheetHandle} />
               <Text style={styles.sheetTitle}>{t("feed.shareTitle")}</Text>
+              <Text style={styles.shareSection}>{t("feed.shareInternal")}</Text>
               <TextInput testID="share-note-input" value={note} onChangeText={setNote} placeholder={t("feed.shareNote")} placeholderTextColor={colors.muted} style={styles.input} />
               <ScrollView style={{ flexGrow: 0 }}>
                 {people.length ? people.map((person) => (
@@ -430,6 +455,18 @@ export default function FeedScreen() {
                   </View>
                 )}
               </ScrollView>
+              <View style={styles.shareDivider} />
+              <Text style={styles.shareSection}>{t("feed.shareExternal")}</Text>
+              <View style={styles.externalShareRow}>
+                <Pressable testID="copy-question-link-button" onPress={copyQuestionLink} style={styles.externalShareButton}>
+                  <Ionicons name="copy-outline" size={16} color={colors.brandPrimary} />
+                  <Text style={styles.externalShareText}>{t("feed.copyLink")}</Text>
+                </Pressable>
+                <Pressable testID="native-share-button" onPress={shareOutside} style={styles.externalShareButton}>
+                  <Ionicons name="share-outline" size={16} color={colors.brandPrimary} />
+                  <Text style={styles.externalShareText}>{t("feed.nativeShare")}</Text>
+                </Pressable>
+              </View>
             </View>
           </KeyboardAvoidingView>
         </View>
@@ -707,6 +744,11 @@ const useStyles = makeStyles((colors) => StyleSheet.create({
   sheet: { backgroundColor: colors.surface, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 18, paddingBottom: 24, maxHeight: 520 },
   sheetHandle: { width: 36, height: 4, borderRadius: 3, backgroundColor: colors.borderStrong, alignSelf: "center", marginBottom: 13 },
   sheetTitle: { color: colors.onSurface, fontSize: 15, fontWeight: "900", marginBottom: 11 },
+  shareSection: { color: colors.muted, fontSize: 9, fontWeight: "900", letterSpacing: 0.6, marginBottom: 8 },
+  shareDivider: { height: 1, backgroundColor: colors.divider, marginTop: 10, marginBottom: 12 },
+  externalShareRow: { flexDirection: "row", gap: 8 },
+  externalShareButton: { flex: 1, minHeight: 44, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceSecondary, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
+  externalShareText: { color: colors.onSurface, fontSize: 11, fontWeight: "800" },
   commentRow: { borderBottomWidth: 1, borderBottomColor: colors.divider, paddingVertical: 10 },
   commentAuthor: { color: colors.onSurface, fontWeight: "800", fontSize: 10 },
   commentText: { color: colors.onSurfaceSecondary, fontSize: 11, marginTop: 3, lineHeight: 16 },

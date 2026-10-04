@@ -6,6 +6,7 @@ import { storage } from "@/src/utils/storage";
 
 export const TOKEN_KEY = "swipedia.session_token";
 const backendUrl = String(Constants.expoConfig?.extra?.backendUrl || "").replace(/\/$/, "");
+export const questionShareLink = (questionId: string) => `${backendUrl}/?question=${encodeURIComponent(questionId)}`;
 
 export type User = {
   user_id: string;

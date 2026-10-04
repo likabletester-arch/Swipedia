@@ -64,6 +64,12 @@ const DICT: Dict = {
   "feed.answerFailed": { tr: "Cevap kaydedilemedi, tekrar dene.", en: "Answer could not be saved.", de: "Antwort nicht gespeichert.", ru: "Ответ не сохранён.", it: "Risposta non salvata.", fr: "Réponse non enregistrée.", ar: "تعذر حفظ الإجابة.", zh: "答案保存失败。" },
   "feed.commentFailed": { tr: "Yorum eklenemedi.", en: "Comment could not be added.", de: "Kommentar fehlgeschlagen.", ru: "Комментарий не добавлен.", it: "Commento non aggiunto.", fr: "Commentaire non ajouté.", ar: "تعذر إضافة التعليق.", zh: "评论失败。" },
   "feed.shareFailed": { tr: "Paylaşım başarısız.", en: "Share failed.", de: "Teilen fehlgeschlagen.", ru: "Не удалось поделиться.", it: "Condivisione fallita.", fr: "Partage échoué.", ar: "فشلت المشاركة.", zh: "分享失败。" },
+  "feed.shareInternal": { tr: "SWIPEDIA İÇİNDE PAYLAŞ", en: "SHARE IN SWIPEDIA", de: "", ru: "", it: "", fr: "", ar: "", zh: "" },
+  "feed.shareExternal": { tr: "DIŞARIDA PAYLAŞ", en: "SHARE OUTSIDE", de: "", ru: "", it: "", fr: "", ar: "", zh: "" },
+  "feed.copyLink": { tr: "Bağlantıyı Kopyala", en: "Copy link", de: "", ru: "", it: "", fr: "", ar: "", zh: "" },
+  "feed.nativeShare": { tr: "Paylaş", en: "Share", de: "", ru: "", it: "", fr: "", ar: "", zh: "" },
+  "feed.linkCopied": { tr: "Bağlantı kopyalandı", en: "Link copied", de: "", ru: "", it: "", fr: "", ar: "", zh: "" },
+  "feed.externalShareText": { tr: "Sen hangisini seçerdin?\n{question}\n\nSwipedia'da cevapla:\n{link}", en: "Which would you choose?\n{question}\n\nAnswer on Swipedia:\n{link}", de: "", ru: "", it: "", fr: "", ar: "", zh: "" },
   "feed.popupProgress": { tr: "{done}/{rate} doğru · Toplam {total} puan", en: "{done}/{rate} correct · {total} points total", de: "{done}/{rate} richtig · {total} Punkte gesamt", ru: "{done}/{rate} верно · Всего {total}", it: "{done}/{rate} esatte · {total} punti totali", fr: "{done}/{rate} bonnes · {total} points", ar: "{done}/{rate} صحيحة · المجموع {total}", zh: "{done}/{rate} 正确 · 总分 {total}" },
   "feed.popupMilestone": { tr: "50 doğru bonusu! Toplam {total} puan", en: "50-correct bonus! {total} points total", de: "Bonus für 50 Richtige! {total} Punkte", ru: "Бонус за 50 верных! Всего {total}", it: "Bonus 50 esatte! {total} punti", fr: "Bonus 50 bonnes réponses ! {total} points", ar: "مكافأة 50 إجابة صحيحة! المجموع {total}", zh: "50题全对奖励！总分 {total}" },
 
