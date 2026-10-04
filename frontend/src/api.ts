@@ -31,6 +31,8 @@ export type User = {
   is_following?: boolean;
   questions_count?: number;
 };
+export type ModerationUser = { user_id: string; name: string; username: string; created_at?: string; role: string; account_status: "active" | "suspended"; questions_count: number };
+export type ModerationSummary = { user: ModerationUser; questions: Question[] };
 
 export type Question = {
   question_id: string;
@@ -204,6 +206,9 @@ export const toggleFollow = (userId: string) => api<{ following: boolean; follow
 export const createQuestion = (payload: { category: string; text: string; options: string[]; correct_index: number; explanation: string; difficulty: string; background?: string | null }) =>
   api<Question>("/questions", { method: "POST", body: JSON.stringify(payload) }, true);
 export const deleteQuestion = (questionId: string) => api<{ ok: boolean }>(`/questions/${questionId}`, { method: "DELETE" }, true);
+export const fetchModeration = (userId: string) => api<ModerationSummary>(`/admin/users/${userId}/moderation`, {}, true);
+export const deleteModeratedQuestion = (userId: string, questionId: string) => api<{ ok: boolean }>(`/admin/users/${userId}/questions/${questionId}`, { method: "DELETE" }, true);
+export const setUserSuspension = (userId: string, suspended: boolean) => api<{ user_id: string; account_status: "active" | "suspended" }>(`/admin/users/${userId}/suspension`, { method: "PATCH", body: JSON.stringify({ suspended }) }, true);
 export const fetchLeaderboard = () => api<Leader[]>("/leaderboard");
 export const registerPush = (user_id: string, platform: string, device_token: string) =>
   api<{ status: string }>("/register-push", { method: "POST", body: JSON.stringify({ user_id, platform, device_token }) });

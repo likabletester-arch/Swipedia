@@ -12,9 +12,10 @@ import {
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { fetchMessages, sendMessage, type Message } from "@/src/api";
+import { fetchMessages, fetchUserProfile, sendMessage, type Message, type User } from "@/src/api";
 import { useAuth } from "@/src/auth";
 import { ToastView, useToast } from "@/src/components/toast";
+import { UserAvatar } from "@/src/components/user-avatar";
 import { useI18n } from "@/src/i18n";
 import { makeStyles, useTheme } from "@/src/theme";
 
@@ -30,10 +31,13 @@ export default function ConversationScreen() {
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState("");
+  const [partner, setPartner] = useState<User | null>(null);
 
   const load = useCallback(() => {
     if (!id) return;
-    fetchMessages(id).then(setMessages).catch(() => setMessages([]));
+    Promise.all([fetchMessages(id), fetchUserProfile(id)])
+      .then(([nextMessages, profile]) => { setMessages(nextMessages); setPartner(profile.user); })
+      .catch(() => { setMessages([]); setPartner(null); });
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
@@ -57,10 +61,13 @@ export default function ConversationScreen() {
         <Pressable testID="chat-back-button" onPress={() => router.back()} style={({ pressed }) => [styles.iconButton, pressed && { opacity: 0.7 }]}>
           <Ionicons name="arrow-back" size={19} color={colors.onSurface} />
         </Pressable>
-        <View style={{ flex: 1, marginLeft: 11 }}>
-          <Text style={styles.headerTitle} testID="conversation-title">{name || t("tabs.chat")}</Text>
-          <Text style={styles.headerHint}>{t("conv.partner")}</Text>
-        </View>
+        <Pressable testID="conversation-partner-profile" onPress={() => router.push({ pathname: "/user/[id]", params: { id } })} style={styles.headerPartner}>
+          <UserAvatar avatar={partner?.avatar} name={partner?.name || name || "?"} size={30} radius={15} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.headerTitle} testID="conversation-title">{partner?.username ? `@${partner.username}` : (name || t("tabs.chat"))}</Text>
+            <Text style={styles.headerHint}>{t("conv.partner")}</Text>
+          </View>
+        </Pressable>
       </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="translate-with-padding" keyboardVerticalOffset={16}>
@@ -105,6 +112,7 @@ const useStyles = makeStyles((colors) => StyleSheet.create({
   iconButton: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.surfaceSecondary, alignItems: "center", justifyContent: "center" },
   headerTitle: { color: colors.onSurface, fontSize: 14, fontWeight: "800", letterSpacing: -0.3 },
   headerHint: { color: colors.muted, fontSize: 9, marginTop: 2 },
+  headerPartner: { flex: 1, marginLeft: 11, flexDirection: "row", alignItems: "center", gap: 8, minHeight: 44 },
   messageBubble: { maxWidth: "82%", borderRadius: 16, padding: 10, marginBottom: 7, backgroundColor: colors.surfaceSecondary, alignSelf: "flex-start" },
   messageMine: { alignSelf: "flex-end", backgroundColor: colors.brandTertiary },
   questionChip: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(255,107,74,0.14)", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3, alignSelf: "flex-start", marginBottom: 5 },

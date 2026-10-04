@@ -165,6 +165,13 @@ backend:
       - working: "NA"
         comment: "ProfileUpdate.bio zaten vardı; public_user bio default '' yapıldı. PATCH /users/me bio kaydeder."
 frontend:
+  - task: "Admin kullanıcı moderasyonu"
+    file: "/app/backend/server.py, /app/frontend/app/user/[id].tsx, /app/frontend/src/api.ts, /app/frontend/src/i18n.tsx"
+    implemented: true
+    needs_retesting: true
+    status_history:
+      - working: true
+        comment: "Manuel API testi: normal/guest moderation GET=403; admin moderation GET=200; suspend=200; askıdaki kullanıcı create=403; unsuspend=200; admin target question delete=200; admin self-suspend=403."
   - task: "Merkezi guest demo yetki koruması"
     file: "/app/backend/server.py, /app/frontend/src/guest-guard.ts, /app/frontend/src/components/custom-tab-bar.tsx, /app/frontend/app/(tabs)/create.tsx, /app/frontend/app/(tabs)/profile.tsx, /app/frontend/app/settings.tsx, /app/frontend/app/login.tsx, /app/frontend/src/auth.tsx, /app/frontend/src/i18n.tsx"
     implemented: true

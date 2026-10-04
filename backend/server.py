@@ -374,6 +374,14 @@ async def require_registered_user(user: Dict[str, Any] = Depends(get_current_use
             detail="Bu işlem için hesap oluşturmanız veya giriş yapmanız gerekir.",
             headers={"X-Auth-Required": "signup-or-login"},
         )
+    if user.get("account_status") == "suspended":
+        raise HTTPException(status_code=403, detail="Hesabın askıya alındığı için bu işlemi yapamazsın.")
+    return user
+
+
+async def require_admin(user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, Any]:
+    if not user.get("is_admin") and user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Bu işlem için yönetici yetkisi gerekir.")
     return user
 
 
@@ -461,6 +469,10 @@ class QuestionCreate(BaseModel):
     explanation: str = Field(min_length=2, max_length=320)
     difficulty: str = Field(default="kolay")
     background: Optional[str] = Field(default=None, max_length=500)
+
+
+class SuspensionUpdate(BaseModel):
+    suspended: bool
 
 
 class MessageCreate(BaseModel):
@@ -1260,13 +1272,7 @@ async def my_questions_list(user: Dict[str, Any] = Depends(get_current_user)) ->
     return [question_public(q, q["question_id"] in saved_ids) for q in rows]
 
 
-@api_router.delete("/questions/{question_id}")
-async def delete_question(question_id: str, user: Dict[str, Any] = Depends(require_registered_user)) -> Dict[str, bool]:
-    question = await db.questions.find_one({"question_id": question_id}, {"_id": 0, "author_id": 1})
-    if not question:
-        raise HTTPException(status_code=404, detail="Soru bulunamadı")
-    if question["author_id"] != user["user_id"] and not user.get("is_admin"):
-        raise HTTPException(status_code=403, detail="Bu soruyu silme yetkin yok")
+async def delete_question_records(question_id: str) -> None:
     await db.questions.delete_one({"question_id": question_id})
     await db.answers.delete_many({"question_id": question_id})
     await db.comments.delete_many({"question_id": question_id})
@@ -1274,7 +1280,58 @@ async def delete_question(question_id: str, user: Dict[str, Any] = Depends(requi
     await db.saved_questions.delete_many({"question_id": question_id})
     await db.notifications.delete_many({"ref_id": question_id})
     await db.feed_seen.delete_many({"question_id": question_id})
+
+
+@api_router.delete("/questions/{question_id}")
+async def delete_question(question_id: str, user: Dict[str, Any] = Depends(require_registered_user)) -> Dict[str, bool]:
+    question = await db.questions.find_one({"question_id": question_id}, {"_id": 0, "author_id": 1})
+    if not question:
+        raise HTTPException(status_code=404, detail="Soru bulunamadı")
+    if question["author_id"] != user["user_id"] and not user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Bu soruyu silme yetkin yok")
+    await delete_question_records(question_id)
     return {"ok": True}
+
+
+@api_router.get("/admin/users/{user_id}/moderation")
+async def admin_user_moderation(user_id: str, admin: Dict[str, Any] = Depends(require_admin)) -> Dict[str, Any]:
+    target = await db.users.find_one({"user_id": user_id}, {"_id": 0})
+    if not target:
+        raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
+    questions = await db.questions.find({**published_question_filter(), "author_id": user_id}, {"_id": 0}).sort("created_at", -1).to_list(300)
+    return {
+        "user": {
+            "user_id": target["user_id"],
+            "name": target.get("name", ""),
+            "username": target.get("username", ""),
+            "created_at": target.get("created_at"),
+            "role": "admin" if target.get("is_admin") or target.get("role") == "admin" else "user",
+            "account_status": target.get("account_status", "active"),
+            "questions_count": len(questions),
+        },
+        "questions": [question_public(question) for question in questions],
+    }
+
+
+@api_router.delete("/admin/users/{user_id}/questions/{question_id}")
+async def admin_delete_user_question(user_id: str, question_id: str, admin: Dict[str, Any] = Depends(require_admin)) -> Dict[str, bool]:
+    question = await db.questions.find_one({**published_question_filter(), "question_id": question_id, "author_id": user_id}, {"_id": 0, "question_id": 1})
+    if not question:
+        raise HTTPException(status_code=404, detail="Yayınlanmış soru bulunamadı")
+    await delete_question_records(question_id)
+    return {"ok": True}
+
+
+@api_router.patch("/admin/users/{user_id}/suspension")
+async def admin_set_user_suspension(user_id: str, payload: SuspensionUpdate, admin: Dict[str, Any] = Depends(require_admin)) -> Dict[str, Any]:
+    target = await db.users.find_one({"user_id": user_id}, {"_id": 0, "user_id": 1, "is_admin": 1, "role": 1})
+    if not target:
+        raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
+    if target.get("is_admin") or target.get("role") == "admin":
+        raise HTTPException(status_code=403, detail="Yönetici hesabının durumu değiştirilemez")
+    account_status = "suspended" if payload.suspended else "active"
+    await db.users.update_one({"user_id": user_id}, {"$set": {"account_status": account_status}})
+    return {"user_id": user_id, "account_status": account_status}
 
 
 @api_router.get("/users/{user_id}/profile")
