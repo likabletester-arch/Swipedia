@@ -80,6 +80,7 @@ export default function FeedScreen() {
   const [note, setNote] = useState("");
   const [unreadCount, setUnreadCount] = useState(0);
   const loadingMore = useRef(false);
+  const feedRef = useRef<FlatList<Question>>(null);
 
   // Üst menü genişleyen overlay: arama / rütbe / bildirimler
   const [panel, setPanel] = useState<null | "search" | "rank" | "notif">(null);
@@ -137,6 +138,12 @@ export default function FeedScreen() {
       loadingMore.current = false;
     }
   }, [error, loading]);
+
+  const openDiscoverQuestion = (question: Question) => {
+    setPanel(null);
+    setQuestions((old) => [question, ...old.filter((item) => item.question_id !== question.question_id)]);
+    requestAnimationFrame(() => feedRef.current?.scrollToOffset({ offset: 0, animated: false }));
+  };
 
   const loadedOnce = useRef(false);
   useFocusEffect(useCallback(() => {
@@ -304,6 +311,7 @@ export default function FeedScreen() {
 
       {!loading && !error && viewport > 0 && questions.length > 0 && (
         <FlatList
+          ref={feedRef}
           data={questions}
           keyExtractor={(item) => item.question_id}
           pagingEnabled
@@ -375,7 +383,7 @@ export default function FeedScreen() {
 
       {panel === "search" && (
         <ExpandingOverlay fromRect={panelRect} onClose={() => setPanel(null)}>
-          <SearchPanel questions={questions} onClose={() => setPanel(null)} />
+          <SearchPanel questions={questions} onClose={() => setPanel(null)} onQuestionOpen={openDiscoverQuestion} />
         </ExpandingOverlay>
       )}
       {panel === "rank" && (

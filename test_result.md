@@ -165,6 +165,15 @@ backend:
       - working: "NA"
         comment: "ProfileUpdate.bio zaten vardı; public_user bio default '' yapıldı. PATCH /users/me bio kaydeder."
 frontend:
+  - task: "Arama Keşfet → ana swipe seçili soru açma"
+    file: "/app/frontend/src/components/search-panel.tsx, /app/frontend/app/(tabs)/index.tsx"
+    implemented: true
+    needs_retesting: true
+    status_history:
+      - working: true
+        comment: "DiscoverCard artık Pressable; gerçek question_id ile onQuestionOpen çağırır. Feed seçilen soru nesnesini mevcut liste başına alır, aynı question_id kaydını tekilleştirir, search overlay'i kapatır ve var olan FlatList'i ilk karta kaydırır. Yeni route/backend/dependency yok."
+      - working: false
+        comment: "Zorunlu frontend test agenti mevcut/veri oluşturmayan koşulda Search → Discover empty state gördü; published soru bulunmadığı için gerçek karta dokunma uçtan uca doğrulanamadı. Test verisi oluşturulmadı."
   - task: "Admin kullanıcı moderasyonu"
     file: "/app/backend/server.py, /app/frontend/app/user/[id].tsx, /app/frontend/src/api.ts, /app/frontend/src/i18n.tsx"
     implemented: true

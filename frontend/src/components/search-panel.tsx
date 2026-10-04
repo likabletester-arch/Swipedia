@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -12,7 +12,7 @@ import { UserAvatar } from "@/src/components/user-avatar";
 import { useI18n } from "@/src/i18n";
 import { makeStyles, useTheme } from "@/src/theme";
 
-export function SearchPanel({ questions, onClose }: { questions: Question[]; onClose: () => void }) {
+export function SearchPanel({ questions, onClose, onQuestionOpen }: { questions: Question[]; onClose: () => void; onQuestionOpen: (question: Question) => void }) {
   const styles = useStyles();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -63,7 +63,7 @@ export function SearchPanel({ questions, onClose }: { questions: Question[]; onC
           <View testID="search-discover-section">
             <Text style={styles.discoverTitle}>{t("discover.title")}</Text>
             <Text style={styles.discoverSub}>{t("discover.subtitle")}</Text>
-            {discover.length ? discover.map((item) => <DiscoverCard key={item.question_id} question={item} />) : (
+            {discover.length ? discover.map((item) => <DiscoverCard key={item.question_id} question={item} onPress={() => onQuestionOpen(item)} />) : (
               <View testID="search-discover-empty" style={styles.discoverEmpty}>
                 <Ionicons name="sparkles-outline" size={28} color={colors.muted} />
                 <Text style={styles.hint}>{t("discover.empty")}</Text>
@@ -112,7 +112,7 @@ export function SearchPanel({ questions, onClose }: { questions: Question[]; onC
   );
 }
 
-function DiscoverCard({ question }: { question: Question }) {
+function DiscoverCard({ question, onPress }: { question: Question; onPress: () => void }) {
   const styles = useStyles();
   const { colors } = useTheme();
   const [uri, setUri] = useState<string | null>(null);
@@ -127,7 +127,7 @@ function DiscoverCard({ question }: { question: Question }) {
   }, [question.background]);
 
   return (
-    <View testID={`discover-card-${question.question_id}`} style={[styles.discoverCard, { aspectRatio: ratio }]}> 
+    <Pressable testID={`discover-card-${question.question_id}`} onPress={onPress} style={({ pressed }) => [styles.discoverCard, { aspectRatio: ratio }, pressed && { opacity: 0.9 }]}> 
       {uri ? <Image source={{ uri }} style={StyleSheet.absoluteFill} contentFit="contain" transition={0} onLoad={(event) => {
         const source = event.source;
         if (source?.width && source?.height) setRatio(source.width / source.height);
@@ -138,7 +138,7 @@ function DiscoverCard({ question }: { question: Question }) {
         <Text style={styles.discoverQuestion} numberOfLines={4}>{question.text}</Text>
         <Text style={styles.discoverAuthor} numberOfLines={1}>{question.author_name}</Text>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
