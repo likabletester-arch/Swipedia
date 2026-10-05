@@ -7,7 +7,7 @@ type Labels = { current: string; longest: string; close: string };
 export function StreakMark({ size = 30 }: { size?: number }) {
   const { scheme } = useTheme();
   return <View style={[styles.mark, { width: size, height: size, borderRadius: size * 0.22 }]}>
-    <Image source={{ uri: "https://customer-assets-m6fa6gv7.emergentagent.net/job_micro-genius-3/artifacts/ff9q21n9_A%C3%A7%C4%B1k%20ve%20Koyu%20Takvim%20%C4%B0konlar%C4%B1.png" }} contentFit="fill" style={{ width: size * 2, height: size, transform: [{ translateX: scheme === "dark" ? -size : 0 }] }} />
+    <Image source={scheme === "dark" ? require("../../assets/images/streak-dark.png") : require("../../assets/images/streak-light.png")} contentFit="contain" style={StyleSheet.absoluteFill} />
   </View>;
 }
 

@@ -366,7 +366,7 @@ export default function FeedScreen() {
         </View>
 
         <View style={styles.headerCenter}><Pressable testID="streak-badge" onPress={() => setStreakOpen(true)} style={({ pressed }) => [styles.streakBadge, pressed && { opacity: 0.85 }]}>
-          <StreakMark size={32} /><View style={styles.streakDivider} /><Text style={styles.streakCount}>{user.streak_count ?? 0} {t("streak.days")}</Text>
+          <StreakMark size={28} /><View style={styles.streakDivider} /><Text numberOfLines={1} style={styles.streakCount}>{user.streak_count ?? 0} {t("streak.days")}</Text>
         </Pressable></View>
 
         <View style={[styles.headerSide, { alignItems: "flex-end" }]}>
@@ -717,14 +717,14 @@ const useStyles = makeStyles((colors) => StyleSheet.create({
   retryButton: { marginTop: 14, minHeight: 44, borderRadius: 13, backgroundColor: colors.brandPrimary, alignItems: "center", justifyContent: "center", paddingHorizontal: 20 },
   retryText: { color: colors.onBrandPrimary, fontWeight: "800", fontSize: 11 },
   headerScrim: { position: "absolute", top: 0, left: 0, right: 0 },
-  header: { position: "absolute", top: 0, left: 0, right: 0, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
-  headerSide: { flex: 1, justifyContent: "center" },
+  header: { position: "absolute", top: 0, left: 0, right: 0, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 8 },
+  headerSide: { flex: 1, minWidth: 0, justifyContent: "center" },
   searchBox: { flexDirection: "row", alignItems: "center", gap: 7, height: 40, paddingHorizontal: 12, borderRadius: 999, backgroundColor: "rgba(18,14,11,0.45)", borderWidth: 1, borderColor: "rgba(255,255,255,0.2)" },
-  searchBoxText: { color: colors.onSurfaceInverse, opacity: 0.6, fontSize: 12, fontWeight: "600" },
-  headerCenter: { flex: 1, alignItems: "center" },
-  streakBadge: { flexDirection: "row", alignItems: "center", gap: 7, height: 40, paddingHorizontal: 5, paddingRight: 10, backgroundColor: "rgba(18,14,11,0.45)", borderWidth: 1, borderColor: "rgba(255,255,255,0.2)", borderRadius: 999 },
+  searchBoxText: { color: colors.onSurfaceInverse, opacity: 0.6, fontSize: 12, fontWeight: "600", flexShrink: 1 },
+  headerCenter: { flex: 1, minWidth: 0, alignItems: "center", justifyContent: "center" },
+  streakBadge: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, height: 40, paddingHorizontal: 7, backgroundColor: "rgba(18,14,11,0.45)", borderWidth: 1, borderColor: "rgba(255,255,255,0.2)", borderRadius: 999 },
   streakDivider: { width: 1, height: 17, backgroundColor: "rgba(255,255,255,0.26)" },
-  streakCount: { color: colors.onSurfaceInverse, fontSize: 11, fontWeight: "900", textAlign: "center" },
+  streakCount: { color: colors.onSurfaceInverse, fontSize: 11, fontWeight: "900", textAlign: "center", flexShrink: 1 },
   notifButton: { flexDirection: "row", alignItems: "center", gap: 6, height: 40, paddingHorizontal: 12, borderRadius: 999, backgroundColor: "rgba(18,14,11,0.45)", borderWidth: 1, borderColor: "rgba(255,255,255,0.2)" },
   notifLabel: { color: colors.onSurfaceInverse, fontSize: 11, fontWeight: "800" },
   notifBadge: { position: "absolute", top: 2, right: 2, minWidth: 16, height: 16, borderRadius: 8, alignItems: "center", justifyContent: "center", paddingHorizontal: 3 },
