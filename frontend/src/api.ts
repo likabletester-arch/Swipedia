@@ -31,6 +31,9 @@ export type User = {
   following_count?: number;
   is_following?: boolean;
   questions_count?: number;
+  streak_count?: number;
+  longest_streak?: number;
+  streak_dates?: string[];
 };
 export type ModerationUser = { user_id: string; name: string; username: string; created_at?: string; role: string; account_status: "active" | "suspended"; questions_count: number };
 export type ModerationSummary = { user: ModerationUser; questions: Question[] };

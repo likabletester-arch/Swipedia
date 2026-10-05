@@ -49,9 +49,9 @@ import { takeSwipeQuestion } from "@/src/question-navigation";
 import { UserAvatar } from "@/src/components/user-avatar";
 import { useI18n } from "@/src/i18n";
 import { usesNativeTabs } from "@/src/navigation";
-import { formatPoints, rankFor, rankName } from "@/src/ranks";
+import { formatPoints } from "@/src/ranks";
 import { makeStyles, useTheme } from "@/src/theme";
-import RanksScreen from "@/src/screens/ranks-screen";
+import { StreakCalendar, StreakMark } from "@/src/components/streak-calendar";
 import NotificationsScreen from "@/src/screens/notifications-screen";
 
 type AnswerResult = { index: number; correct: boolean; correctIndex?: number; explanation?: string };
@@ -86,10 +86,10 @@ export default function FeedScreen() {
   const feedRef = useRef<FlatList<Question>>(null);
 
   // Üst menü genişleyen overlay: arama / rütbe / bildirimler
-  const [panel, setPanel] = useState<null | "search" | "rank" | "notif">(null);
+  const [panel, setPanel] = useState<null | "search" | "notif">(null);
+  const [streakOpen, setStreakOpen] = useState(false);
   const [panelRect, setPanelRect] = useState<Rect>({ x: 0, y: 0, width: 0, height: 0 });
   const searchRef = useRef<View>(null);
-  const rankRef = useRef<View>(null);
   const notifRef = useRef<View>(null);
 
   const openPanel = (mode: "search" | "rank" | "notif", ref: RefObject<View>) => {
@@ -289,7 +289,6 @@ export default function FeedScreen() {
   };
 
   if (!user) return null;
-  const rank = rankFor(user.points);
 
   return (
     <View
@@ -366,23 +365,9 @@ export default function FeedScreen() {
           </Pressable>
         </View>
 
-        <Pressable ref={rankRef} collapsable={false} testID="rank-badge" onPress={() => openPanel("rank", rankRef)} style={({ pressed }) => [styles.rankBadge, pressed && { opacity: 0.85 }]}>
-          <View style={[styles.rankIconRing, { borderColor: rank.color }]}>
-            <View style={[styles.rankIcon, { backgroundColor: rank.color }]}>
-              <Ionicons name={rank.icon} size={15} color="#FFFFFF" />
-            </View>
-          </View>
-          {user.is_admin ? (
-            <Text style={styles.rankName}>{t("ranks.title")}</Text>
-          ) : (
-            <View>
-              <Text style={styles.rankName}>{rankName(rank, lang)}</Text>
-              <View style={styles.rankPointsRow}>
-                <Ionicons name="sparkles" size={9} color={colors.brandSecondary} />
-                <Text style={styles.rankPoints}>{formatPoints(user.points)} {t("common.points")}</Text>
-              </View>
-            </View>
-          )}
+        <Pressable testID="streak-badge" onPress={() => setStreakOpen(true)} style={({ pressed }) => [styles.streakBadge, pressed && { opacity: 0.85 }]}>
+          <StreakMark size={32} />
+          <Text style={styles.streakCount}>{user.streak_count ?? 0}</Text>
         </Pressable>
 
         <View style={[styles.headerSide, { alignItems: "flex-end" }]}>
@@ -401,11 +386,6 @@ export default function FeedScreen() {
       {panel === "search" && (
         <ExpandingOverlay fromRect={panelRect} onClose={() => setPanel(null)}>
           <SearchPanel questions={questions} onClose={() => setPanel(null)} onQuestionOpen={openDiscoverQuestion} />
-        </ExpandingOverlay>
-      )}
-      {panel === "rank" && (
-        <ExpandingOverlay fromRect={panelRect} onClose={() => setPanel(null)}>
-          <RanksScreen />
         </ExpandingOverlay>
       )}
       {panel === "notif" && (
@@ -520,6 +500,7 @@ export default function FeedScreen() {
           </View>
         </View>
       </Modal>
+      <StreakCalendar visible={streakOpen} onClose={() => setStreakOpen(false)} streak={user.streak_count ?? 0} longest={user.longest_streak ?? 0} completedDates={user.streak_dates ?? []} locale={lang} labels={{ current: t("streak.current"), longest: t("streak.longest"), close: t("streak.close") }} />
 
       <ToastView message={toast.message} bottom={bottomChrome + 24} />
     </View>
@@ -542,8 +523,11 @@ function CardBackground({ background }: { background?: string | null }) {
 
   useEffect(() => {
     let mounted = true;
-    if (background && !background.startsWith("http")) {
-      fileUrl(background).then((resolved) => { if (mounted) setUri(resolved); }).catch(() => {});
+    if (!background) setUri(null);
+    else if (background.startsWith("http")) setUri(background);
+    else {
+      setUri(null);
+      fileUrl(background).then((resolved) => { if (mounted) setUri(resolved); }).catch(() => { if (mounted) setUri(null); });
     }
     return () => { mounted = false; };
   }, [background]);
@@ -738,12 +722,8 @@ const useStyles = makeStyles((colors) => StyleSheet.create({
   headerSide: { flex: 1, justifyContent: "center" },
   searchBox: { flexDirection: "row", alignItems: "center", gap: 7, height: 40, paddingHorizontal: 12, borderRadius: 999, backgroundColor: "rgba(18,14,11,0.45)", borderWidth: 1, borderColor: "rgba(255,255,255,0.2)" },
   searchBoxText: { color: colors.onSurfaceInverse, opacity: 0.6, fontSize: 12, fontWeight: "600" },
-  rankBadge: { flexDirection: "row", alignItems: "center", gap: 9, backgroundColor: "rgba(18,14,11,0.45)", borderWidth: 1, borderColor: "rgba(255,255,255,0.2)", borderRadius: 999, paddingVertical: 7, paddingLeft: 7, paddingRight: 15 },
-  rankIconRing: { width: 38, height: 38, borderRadius: 19, borderWidth: 2, alignItems: "center", justifyContent: "center" },
-  rankIcon: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  rankName: { color: colors.onSurfaceInverse, fontSize: 13, fontWeight: "800" },
-  rankPointsRow: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 1 },
-  rankPoints: { color: colors.onSurfaceInverse, opacity: 0.78, fontSize: 10, fontWeight: "700" },
+  streakBadge: { flexDirection: "row", alignItems: "center", gap: 7, height: 40, paddingHorizontal: 6, paddingRight: 12, backgroundColor: "rgba(18,14,11,0.45)", borderWidth: 1, borderColor: "rgba(255,255,255,0.2)", borderRadius: 999 },
+  streakCount: { color: colors.onSurfaceInverse, fontSize: 15, fontWeight: "900", minWidth: 12, textAlign: "center" },
   notifButton: { flexDirection: "row", alignItems: "center", gap: 6, height: 40, paddingHorizontal: 12, borderRadius: 999, backgroundColor: "rgba(18,14,11,0.45)", borderWidth: 1, borderColor: "rgba(255,255,255,0.2)" },
   notifLabel: { color: colors.onSurfaceInverse, fontSize: 11, fontWeight: "800" },
   notifBadge: { position: "absolute", top: 2, right: 2, minWidth: 16, height: 16, borderRadius: 8, alignItems: "center", justifyContent: "center", paddingHorizontal: 3 },

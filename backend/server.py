@@ -328,6 +328,9 @@ def public_user(user: Dict[str, Any]) -> Dict[str, Any]:
         "point_rate": rate_for(float(user.get("points", 0))),
         "correct_count": user.get("correct_count", 0),
         "saved_count": user.get("saved_count", 0),
+        "streak_count": user.get("streak_count", 0),
+        "longest_streak": user.get("longest_streak", 0),
+        "streak_dates": user.get("streak_dates", []),
     }
 
 
@@ -1154,6 +1157,16 @@ async def answer(question_id: str, payload: AnswerRequest, user: Dict[str, Any] 
         return {"correct": payload.option_index == question["correct_index"], "already_answered": True, "earned": 0, "answered_count": answered_count, "user": public_user(user)}
     correct = payload.option_index == question["correct_index"]
     await db.answers.insert_one({"answer_key": answer_key, "user_id": user["user_id"], "question_id": question_id, "correct": correct, "created_at": now_utc()})
+    today = now_utc().date()
+    today_key = today.isoformat()
+    last_key = user.get("streak_last_date", "")
+    if last_key != today_key:
+        previous_key = (today - timedelta(days=1)).isoformat()
+        streak_count = int(user.get("streak_count", 0)) + 1 if last_key == previous_key else 1
+        longest_streak = max(int(user.get("longest_streak", 0)), streak_count)
+        streak_dates = (list(user.get("streak_dates", [])) + [today_key])[-120:]
+        await db.users.update_one({"user_id": user["user_id"]}, {"$set": {"streak_count": streak_count, "longest_streak": longest_streak, "streak_last_date": today_key, "streak_dates": streak_dates}})
+        user.update({"streak_count": streak_count, "longest_streak": longest_streak, "streak_dates": streak_dates})
     earned = 0
     progress = user.get("point_progress", 0)
     rate = rate_for(float(user.get("points", 0)))
