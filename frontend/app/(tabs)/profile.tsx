@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
@@ -12,7 +13,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { deleteQuestion, fetchMyQuestions, fetchSavedQuestions, type Question } from "@/src/api";
+import { deleteQuestion, fetchMyQuestions, fetchSavedQuestions, fileUrl, type Question } from "@/src/api";
 import { useAuth } from "@/src/auth";
 import { categoryIcon } from "@/src/categories";
 import { FadeSlideIn } from "@/src/components/fade-slide-in";
@@ -20,6 +21,7 @@ import { CreatorRankCard } from "@/src/components/creator-rank-card";
 import { UserAvatar } from "@/src/components/user-avatar";
 import { useI18n } from "@/src/i18n";
 import { useRequireAccount } from "@/src/guest-guard";
+import { selectSwipeQuestion } from "@/src/question-navigation";
 import { usesNativeTabs } from "@/src/navigation";
 import { formatPoints, rankFor, rankName } from "@/src/ranks";
 import { makeStyles, useTheme } from "@/src/theme";
@@ -40,6 +42,7 @@ export default function ProfileScreen() {
   const [shared, setShared] = useState<Question[]>([]);
   const [saved, setSaved] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sharedBackgrounds, setSharedBackgrounds] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let active = true;
@@ -53,6 +56,14 @@ export default function ProfileScreen() {
       .finally(() => active && setLoading(false));
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    Promise.all(shared.filter((question) => question.background).map(async (question) => [question.question_id, question.background!.startsWith("http") ? question.background! : await fileUrl(question.background!)] as const))
+      .then((rows) => { if (active) setSharedBackgrounds(Object.fromEntries(rows)); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [shared]);
 
   if (!user) return null;
   const rank = rankFor(user.points);
@@ -73,6 +84,10 @@ export default function ProfileScreen() {
     { text: "Soruyu Sil", style: "destructive", onPress: () => confirmDelete(question) },
     { text: "İptal", style: "cancel" },
   ]);
+  const openSwipeQuestion = (question: Question) => {
+    selectSwipeQuestion(question);
+    router.navigate("/(tabs)");
+  };
 
   return (
     <View style={styles.screen} testID="profile-screen">
@@ -141,7 +156,9 @@ export default function ProfileScreen() {
           <View style={styles.grid} testID={`profile-grid-${tab}`}>
             {items.map((q, index) => (
               <FadeSlideIn key={q.question_id} delay={index * 40} style={styles.tileWrap}>
-                <View style={styles.tile} testID={`question-tile-${q.question_id}`}>
+                <Pressable onPress={() => openSwipeQuestion(q)} style={styles.tile} testID={`question-tile-${q.question_id}`}>
+                  {tab === "shared" && sharedBackgrounds[q.question_id] && <><Image source={{ uri: sharedBackgrounds[q.question_id] }} style={StyleSheet.absoluteFill} contentFit="cover" /><View style={styles.tileOverlay} pointerEvents="none" /></>}
+                  <View style={styles.tileContent}>
                   <View style={styles.tileHead}>
                     <View style={styles.tileCat}>
                       <Ionicons name={categoryIcon(q.category)} size={10} color={colors.onBrandTertiary} />
@@ -149,15 +166,15 @@ export default function ProfileScreen() {
                     </View>
                     {tab === "shared" && <Pressable testID={`question-menu-${q.question_id}`} onPress={() => openDeleteMenu(q)} style={styles.questionMenu}><Ionicons name="ellipsis-horizontal" size={16} color={colors.muted} /></Pressable>}
                   </View>
-                  <Text style={styles.tileText} numberOfLines={4}>{q.text}</Text>
+                  <Text style={[styles.tileText, tab === "shared" && sharedBackgrounds[q.question_id] && styles.tileTextOnImage]} numberOfLines={4}>{q.text}</Text>
                   <View style={styles.tileFoot}>
-                    <Text style={styles.tileDiff}>{t(`diff.${q.difficulty}`)}</Text>
+                    <Text style={[styles.tileDiff, tab === "shared" && sharedBackgrounds[q.question_id] && styles.tileMetaOnImage]}>{t(`diff.${q.difficulty}`)}</Text>
                     <View style={styles.tileMeta}>
-                      <Ionicons name="bookmark" size={10} color={colors.muted} />
-                      <Text style={styles.tileMetaText}>{q.saves_count}</Text>
+                      <Ionicons name="bookmark" size={10} color={tab === "shared" && sharedBackgrounds[q.question_id] ? "rgba(255,255,255,0.82)" : colors.muted} />
+                      <Text style={[styles.tileMetaText, tab === "shared" && sharedBackgrounds[q.question_id] && styles.tileMetaOnImage]}>{q.saves_count}</Text>
                     </View>
                   </View>
-                </View>
+                  </View></Pressable>
               </FadeSlideIn>
             ))}
           </View>
@@ -198,15 +215,19 @@ const useStyles = makeStyles((colors) => StyleSheet.create({
   tabText: { fontSize: 12, fontWeight: "800" },
   grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", marginTop: 14 },
   tileWrap: { width: "48.5%", marginBottom: 11 },
-  tile: { backgroundColor: colors.surfaceSecondary, borderRadius: 16, padding: 12, borderWidth: 1, borderColor: colors.border, minHeight: 128, justifyContent: "space-between" },
+  tile: { backgroundColor: colors.surfaceSecondary, borderRadius: 16, padding: 12, borderWidth: 1, borderColor: colors.border, minHeight: 128, justifyContent: "space-between", overflow: "hidden" },
+  tileOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(15,12,10,0.34)" },
+  tileContent: { flex: 1, zIndex: 1, justifyContent: "space-between" },
   tileHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   questionMenu: { width: 28, height: 28, alignItems: "center", justifyContent: "center", marginTop: -6, marginRight: -6 },
   tileCat: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: colors.brandTertiary, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4, maxWidth: "100%" },
   tileCatText: { color: colors.onBrandTertiary, fontSize: 9, fontWeight: "800", flexShrink: 1 },
   tileText: { color: colors.onSurface, fontSize: 12, fontWeight: "700", lineHeight: 17, marginTop: 9, flex: 1 },
+  tileTextOnImage: { color: "#FFFFFF", textShadowColor: "rgba(0,0,0,0.5)", textShadowRadius: 3 },
   tileFoot: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 9 },
   tileDiff: { color: colors.muted, fontSize: 9, fontWeight: "800", textTransform: "capitalize" },
   tileMeta: { flexDirection: "row", alignItems: "center", gap: 3 },
   tileMetaText: { color: colors.muted, fontSize: 10, fontWeight: "700" },
+  tileMetaOnImage: { color: "rgba(255,255,255,0.82)" },
   emptyText: { color: colors.muted, lineHeight: 18, fontSize: 11, marginTop: 24, textAlign: "center", paddingHorizontal: 20 },
 }));

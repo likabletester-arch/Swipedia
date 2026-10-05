@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
@@ -45,6 +46,7 @@ import { ToastView, useToast } from "@/src/components/toast";
 import { categoryIcon } from "@/src/categories";
 import { ExpandingOverlay, type Rect } from "@/src/components/expanding-overlay";
 import { SearchPanel } from "@/src/components/search-panel";
+import { takeSwipeQuestion } from "@/src/question-navigation";
 import { UserAvatar } from "@/src/components/user-avatar";
 import { useI18n } from "@/src/i18n";
 import { usesNativeTabs } from "@/src/navigation";
@@ -141,11 +143,16 @@ export default function FeedScreen() {
     }
   }, [error, loading]);
 
-  const openDiscoverQuestion = (question: Question) => {
+  const openDiscoverQuestion = useCallback((question: Question) => {
     setPanel(null);
     setQuestions((old) => [question, ...old.filter((item) => item.question_id !== question.question_id)]);
     requestAnimationFrame(() => feedRef.current?.scrollToOffset({ offset: 0, animated: false }));
-  };
+  }, []);
+
+  useFocusEffect(useCallback(() => {
+    const question = takeSwipeQuestion();
+    if (question) openDiscoverQuestion(question);
+  }, [openDiscoverQuestion]));
 
   const loadedOnce = useRef(false);
   useFocusEffect(useCallback(() => {
