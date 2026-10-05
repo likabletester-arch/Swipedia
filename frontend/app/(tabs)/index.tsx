@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect } from "@react-navigation/native";
 import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
@@ -149,18 +148,15 @@ export default function FeedScreen() {
     requestAnimationFrame(() => feedRef.current?.scrollToOffset({ offset: 0, animated: false }));
   }, []);
 
-  useFocusEffect(useCallback(() => {
-    const question = takeSwipeQuestion();
-    if (question) openDiscoverQuestion(question);
-  }, [openDiscoverQuestion]));
-
   const loadedOnce = useRef(false);
   useFocusEffect(useCallback(() => {
-    load(loadedOnce.current);
+    const selectedQuestion = takeSwipeQuestion();
+    if (selectedQuestion) openDiscoverQuestion(selectedQuestion);
+    else load(loadedOnce.current);
     loadedOnce.current = true;
     // Fetch unread notification count
     fetchUnreadCount().then((r) => setUnreadCount(r.count)).catch(() => {});
-  }, [load]));
+  }, [load, openDiscoverQuestion]));
 
   const answer = async (question: Question, index: number) => {
     if (answered[question.question_id]) return;
