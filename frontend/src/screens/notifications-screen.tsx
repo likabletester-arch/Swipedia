@@ -25,6 +25,7 @@ const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
   points: "sparkles",
   rank_up: "trophy",
   comment: "chatbubble-outline",
+  mention: "at-outline",
   share: "paper-plane-outline",
   system: "megaphone-outline",
 };

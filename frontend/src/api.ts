@@ -54,10 +54,12 @@ export type Question = {
   comments_count: number;
   saved: boolean;
   liked: boolean;
+  moderation_status?: "safe" | "review" | "blocked";
 };
 
-export type Comment = { comment_id: string; question_id: string; user_id: string; user_name: string; text: string; created_at: string };
-export type Person = { user_id: string; name: string; bio?: string; points?: number; avatar?: string };
+export type Mention = { user_id: string; username: string };
+export type Comment = { comment_id: string; question_id: string; user_id: string; user_name: string; text: string; mentions?: Mention[]; created_at: string };
+export type Person = { user_id: string; name: string; username: string; bio?: string; points?: number; avatar?: string };
 export type Message = { message_id: string; sender_id: string; recipient_id: string; sender_name: string; text: string; question_id?: string; created_at: string };
 export type Conversation = { participants: string[]; other_name: string; last_message: string; updated_at: string };
 export type Leader = { rank: number; user_id: string; name: string; points: number; correct_count: number; avatar?: string };
@@ -194,7 +196,7 @@ export const fetchFeed = (limit = 12, category?: string) => {
   return api<Question[]>(`/feed?${params.toString()}`);
 };
 export const fetchComments = (questionId: string) => api<Comment[]>(`/questions/${questionId}/comments`);
-export const addComment = (questionId: string, text: string) => api<Comment>(`/questions/${questionId}/comments`, { method: "POST", body: JSON.stringify({ text }) }, true);
+export const addComment = (questionId: string, text: string, mentions: string[] = []) => api<Comment>(`/questions/${questionId}/comments`, { method: "POST", body: JSON.stringify({ text, mentions }) }, true);
 export const answerQuestion = (questionId: string, optionIndex: number) =>
   api<{ correct: boolean; already_answered: boolean; correct_index?: number; explanation?: string; earned: number; point_progress: number; point_rate: number; answered_count?: number; user: User }>(
     `/questions/${questionId}/answer`,

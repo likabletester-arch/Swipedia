@@ -26,6 +26,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, EmailStr, Field
 from pymongo import UpdateOne
 from starlette.middleware.cors import CORSMiddleware
+from moderation import moderate_question
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
@@ -459,6 +460,7 @@ class AnswerRequest(BaseModel):
 
 class CommentRequest(BaseModel):
     text: str = Field(min_length=1, max_length=300)
+    mentions: List[str] = Field(default_factory=list, max_length=8)
 
 
 class QuestionCreate(BaseModel):
@@ -579,6 +581,7 @@ def question_public(question: Dict[str, Any], saved: bool = False, liked: bool =
         "saves_count": question.get("saves_count", 0),
         "shares_count": question.get("shares_count", 0),
         "comments_count": question.get("comments_count", 0),
+        "moderation_status": question.get("moderation_status", "safe"),
         "saved": saved,
         "liked": liked,
     }
@@ -1143,6 +1146,8 @@ async def answer(question_id: str, payload: AnswerRequest, user: Dict[str, Any] 
     question = await db.questions.find_one({"question_id": question_id}, {"_id": 0})
     if not question:
         raise HTTPException(status_code=404, detail="Soru bulunamadı")
+    if question.get("author_id") == user["user_id"]:
+        raise HTTPException(status_code=403, detail="Kendi sorunu cevaplayamazsın.")
     answer_key = f"{user['user_id']}:{question_id}"
     if await db.answers.find_one({"answer_key": answer_key}, {"_id": 0}):
         answered_count = await db.answers.count_documents({"user_id": user["user_id"]})
@@ -1206,7 +1211,10 @@ async def comments(question_id: str) -> List[Dict[str, Any]]:
 
 @api_router.post("/questions/{question_id}/comments")
 async def add_comment(question_id: str, payload: CommentRequest, user: Dict[str, Any] = Depends(require_registered_user)) -> Dict[str, Any]:
-    comment = {"comment_id": f"c_{uuid.uuid4().hex[:12]}", "question_id": question_id, "user_id": user["user_id"], "user_name": user["name"], "text": payload.text, "created_at": now_utc().isoformat()}
+    mention_ids = list(dict.fromkeys(payload.mentions))[:8]
+    mentioned_users = await db.users.find({"user_id": {"$in": mention_ids}, "provider": {"$ne": "guest"}}, {"_id": 0, "user_id": 1, "username": 1, "name": 1}).to_list(8) if mention_ids else []
+    mentions = [{"user_id": item["user_id"], "username": item.get("username", "")} for item in mentioned_users if item.get("username")]
+    comment = {"comment_id": f"c_{uuid.uuid4().hex[:12]}", "question_id": question_id, "user_id": user["user_id"], "user_name": user["name"], "text": payload.text, "mentions": mentions, "created_at": now_utc().isoformat()}
     await db.comments.insert_one(comment.copy())
     await db.questions.update_one({"question_id": question_id}, {"$inc": {"comments_count": 1}})
     # Notify question author about the new comment
@@ -1214,6 +1222,9 @@ async def add_comment(question_id: str, payload: CommentRequest, user: Dict[str,
     if question and question.get("author_id") and question["author_id"] != user["user_id"]:
         snippet = (question.get("text") or "")[:40]
         await create_notification(question["author_id"], "comment", f"{user['name']} yorum yaptı", f'"{snippet}…" sorusuna: {payload.text[:60]}', "chatbubble-outline", question_id)
+    for mentioned in mentioned_users:
+        if mentioned["user_id"] != user["user_id"]:
+            await create_notification(mentioned["user_id"], "mention", f"{user['name']} bir yorumda senden bahsetti", payload.text[:80], "at-outline", question_id)
     return comment
 
 
@@ -1221,6 +1232,14 @@ async def add_comment(question_id: str, payload: CommentRequest, user: Dict[str,
 async def create_question(payload: QuestionCreate, user: Dict[str, Any] = Depends(require_registered_user)) -> Dict[str, Any]:
     if payload.difficulty not in DIFFICULTIES:
         raise HTTPException(status_code=422, detail="Geçersiz zorluk seviyesi")
+    moderation_status = await moderate_question({
+        "text": payload.text,
+        "options": payload.options,
+        "explanation": payload.explanation,
+        "has_image": bool(payload.background),
+    })
+    if moderation_status == "blocked":
+        raise HTTPException(status_code=422, detail="Bu soru topluluk kurallarına uygun olmadığı için yayınlanamadı.")
     question = {
         **payload.model_dump(),
         "question_id": f"q_{uuid.uuid4().hex[:12]}",
@@ -1233,18 +1252,20 @@ async def create_question(payload: QuestionCreate, user: Dict[str, Any] = Depend
         "saves_count": 0,
         "shares_count": 0,
         "comments_count": 0,
-        "is_published": True,
+        "is_published": moderation_status == "safe",
         "is_active": True,
         "is_hidden": False,
         "is_deleted": False,
         "feed_random": secrets.randbits(53) / float(1 << 53),
+        "moderation_status": moderation_status,
         "created_at": now_utc(),
     }
     await db.questions.insert_one(question.copy())
     # Takipçilere yeni soru bildirimi
-    followers = await db.follows.find({"following_id": user["user_id"]}, {"_id": 0, "follower_id": 1}).to_list(500)
-    for f in followers:
-        await create_notification(f["follower_id"], "new_question", f"{user['name']} yeni bir soru paylaştı", (payload.text or "")[:60], "sparkles-outline", question["question_id"])
+    if moderation_status == "safe":
+        followers = await db.follows.find({"following_id": user["user_id"]}, {"_id": 0, "follower_id": 1}).to_list(500)
+        for f in followers:
+            await create_notification(f["follower_id"], "new_question", f"{user['name']} yeni bir soru paylaştı", (payload.text or "")[:60], "sparkles-outline", question["question_id"])
     return question_public(question)
 
 
@@ -1298,7 +1319,7 @@ async def admin_user_moderation(user_id: str, admin: Dict[str, Any] = Depends(re
     target = await db.users.find_one({"user_id": user_id}, {"_id": 0})
     if not target:
         raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
-    questions = await db.questions.find({**published_question_filter(), "author_id": user_id}, {"_id": 0}).sort("created_at", -1).to_list(300)
+    questions = await db.questions.find({"author_id": user_id}, {"_id": 0}).sort("created_at", -1).to_list(300)
     return {
         "user": {
             "user_id": target["user_id"],
@@ -1340,7 +1361,7 @@ async def user_public_profile(user_id: str, request: Request) -> Dict[str, Any]:
     target = await db.users.find_one({"user_id": user_id}, {"_id": 0})
     if not target:
         raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
-    rows = await db.questions.find({"author_id": user_id}, {"_id": 0}).sort("created_at", -1).to_list(300)
+    rows = await db.questions.find({**published_question_filter(), "author_id": user_id}, {"_id": 0}).sort("created_at", -1).to_list(300)
     viewer = await get_optional_user(request)
     stats = await follow_stats(user_id, viewer["user_id"] if viewer else None)
     questions_count = await db.questions.count_documents({"author_id": user_id})
@@ -1424,13 +1445,13 @@ async def send_message(other_user_id: str, payload: MessageCreate, user: Dict[st
 
 @api_router.get("/people")
 async def people(user: Dict[str, Any] = Depends(get_current_user)) -> List[Dict[str, Any]]:
-    rows = await db.users.find({"user_id": {"$ne": user["user_id"]}, "provider": {"$ne": "guest"}}, {"_id": 0, "user_id": 1, "name": 1, "bio": 1, "points": 1, "avatar": 1}).to_list(20)
+    rows = await db.users.find({"user_id": {"$ne": user["user_id"]}, "provider": {"$ne": "guest"}}, {"_id": 0, "user_id": 1, "name": 1, "username": 1, "bio": 1, "points": 1, "avatar": 1}).to_list(20)
     return rows
 
 
 # ---------- Notifications ----------
 
-NOTIFICATION_TYPES = {"points", "rank_up", "comment", "share", "system", "like", "follow", "new_question"}
+NOTIFICATION_TYPES = {"points", "rank_up", "comment", "mention", "share", "system", "like", "follow", "new_question"}
 
 
 async def create_notification(

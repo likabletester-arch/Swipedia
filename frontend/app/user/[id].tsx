@@ -57,7 +57,7 @@ export default function PublicProfileScreen() {
 
   useEffect(() => {
     if (!me?.is_admin || !id) return;
-    fetchModeration(String(id)).then(setModeration).catch(() => setModeration(null));
+    fetchModeration(String(id)).then((summary) => { setModeration(summary); setQuestions(summary.questions); }).catch(() => setModeration(null));
   }, [id, me?.is_admin]);
 
   const rank = profile ? rankFor(profile.points) : null;

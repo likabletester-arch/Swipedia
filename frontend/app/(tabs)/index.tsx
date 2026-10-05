@@ -4,7 +4,7 @@ import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -36,6 +36,7 @@ import {
   toggleLike,
   toggleSave,
   type Comment,
+  type Mention,
   type Person,
   type Question,
 } from "@/src/api";
@@ -75,6 +76,7 @@ export default function FeedScreen() {
   const [active, setActive] = useState<Question | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState("");
+  const [selectedMentions, setSelectedMentions] = useState<Person[]>([]);
   const [shareOpen, setShareOpen] = useState(false);
   const [people, setPeople] = useState<Person[]>([]);
   const [note, setNote] = useState("");
@@ -212,18 +214,30 @@ export default function FeedScreen() {
     } catch {
       setComments([]);
     }
+    fetchPeople().then(setPeople).catch(() => setPeople([]));
   };
 
   const postComment = async () => {
     if (!active || !commentText.trim()) return;
     try {
-      const item = await addComment(active.question_id, commentText.trim());
+      const mentionIds = selectedMentions.filter((person) => new RegExp(`(^|\\s)@${person.username}(?=\\s|$)`, "i").test(commentText)).map((person) => person.user_id);
+      const item = await addComment(active.question_id, commentText.trim(), mentionIds);
       setComments((old) => [item, ...old]);
       setCommentText("");
+      setSelectedMentions([]);
       setQuestions((old) => old.map((q) => (q.question_id === active.question_id ? { ...q, comments_count: q.comments_count + 1 } : q)));
     } catch {
       toast.show(t("feed.commentFailed"));
     }
+  };
+
+  const mentionQuery = useMemo(() => commentText.match(/(^|\s)@([a-z0-9_]*)$/i)?.[2]?.toLowerCase(), [commentText]);
+  const mentionSuggestions = useMemo(() => mentionQuery === undefined ? [] : people.filter((person) => person.username?.toLowerCase().startsWith(mentionQuery)).slice(0, 5), [mentionQuery, people]);
+  const insertMention = (person: Person) => {
+    const match = commentText.match(/(^|\s)@([a-z0-9_]*)$/i);
+    if (!match || match.index === undefined) return;
+    setCommentText(`${commentText.slice(0, match.index)}${match[1]}@${person.username} `);
+    setSelectedMentions((old) => old.some((item) => item.user_id === person.user_id) ? old : [...old, person]);
   };
 
   const openShare = async (question: Question) => {
@@ -422,10 +436,16 @@ export default function FeedScreen() {
                 {comments.length ? comments.map((item) => (
                   <View key={item.comment_id} style={styles.commentRow}>
                     <Text style={styles.commentAuthor}>{item.user_name}</Text>
-                    <Text style={styles.commentText}>{item.text}</Text>
+                    <CommentText comment={item} />
                   </View>
                 )) : <Text style={styles.emptySheetText}>{t("feed.firstComment")}</Text>}
               </ScrollView>
+              {mentionSuggestions.length > 0 && <View testID="mention-suggestions" style={styles.mentionSuggestions}>
+                {mentionSuggestions.map((person) => <Pressable key={person.user_id} testID={`mention-${person.user_id}`} onPress={() => insertMention(person)} style={styles.mentionRow}>
+                  <UserAvatar avatar={person.avatar} name={person.name} size={26} radius={9} />
+                  <Text style={styles.mentionName}>@{person.username}</Text>
+                </Pressable>)}
+              </View>}
               <View style={styles.rowInput}>
                 <TextInput testID="comment-input" value={commentText} onChangeText={setCommentText} placeholder={t("feed.commentPlaceholder")} placeholderTextColor={colors.muted} style={[styles.input, styles.flexInput]} />
                 <Pressable testID="comment-send-button" onPress={postComment} style={styles.sendButton}>
@@ -501,6 +521,16 @@ export default function FeedScreen() {
       <ToastView message={toast.message} bottom={bottomChrome + 24} />
     </View>
   );
+}
+
+function CommentText({ comment }: { comment: Comment }) {
+  const styles = useStyles();
+  const router = useRouter();
+  const mentions = new Map((comment.mentions || []).map((mention: Mention) => [mention.username.toLowerCase(), mention]));
+  return <Text style={styles.commentText}>{comment.text.split(/(@[a-z0-9_]+)/gi).map((part, index) => {
+    const mention = mentions.get(part.slice(1).toLowerCase());
+    return mention ? <Text key={`${part}-${index}`} testID={`comment-mention-${mention.user_id}`} onPress={() => router.push(`/user/${mention.user_id}`)} style={styles.commentMention}>{part}</Text> : part;
+  })}</Text>;
 }
 
 function CardBackground({ background }: { background?: string | null }) {
@@ -760,6 +790,10 @@ const useStyles = makeStyles((colors) => StyleSheet.create({
   commentRow: { borderBottomWidth: 1, borderBottomColor: colors.divider, paddingVertical: 10 },
   commentAuthor: { color: colors.onSurface, fontWeight: "800", fontSize: 10 },
   commentText: { color: colors.onSurfaceSecondary, fontSize: 11, marginTop: 3, lineHeight: 16 },
+  commentMention: { color: colors.brandPrimary, fontWeight: "900" },
+  mentionSuggestions: { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceSecondary, borderRadius: 13, marginTop: 8, overflow: "hidden" },
+  mentionRow: { minHeight: 38, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 10, borderBottomWidth: 1, borderBottomColor: colors.divider },
+  mentionName: { color: colors.onSurface, fontSize: 11, fontWeight: "800" },
   emptySheet: { alignItems: "center", paddingVertical: 24, gap: 7 },
   emptySheetText: { color: colors.muted, textAlign: "center", lineHeight: 17, fontSize: 10 },
   rowInput: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 9 },
