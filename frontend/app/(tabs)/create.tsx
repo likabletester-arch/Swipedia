@@ -30,6 +30,10 @@ import { ImageFlowError, pickCroppedImage } from "@/src/utils/image-upload";
 const CATEGORIES = CATEGORY_DEFS;
 
 const PRESET_BACKGROUNDS = [
+  "https://customer-assets-m6fa6gv7.emergentagent.net/job_micro-genius-3/artifacts/93swrgde_beyaz%20soru%20arka%20plan%C4%B1.jpg",
+  "https://customer-assets-m6fa6gv7.emergentagent.net/job_micro-genius-3/artifacts/nxhgxe1u_beyaz%20arka%20plan%202.jpg",
+  "https://customer-assets-m6fa6gv7.emergentagent.net/job_micro-genius-3/artifacts/k47ixcce_siyah%20soru%20arka%20plan%C4%B1.jpg",
+  "https://customer-assets-m6fa6gv7.emergentagent.net/job_micro-genius-3/artifacts/9xwi6mj9_siyah%20arka%20pla.jpg",
   "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1080&auto=format&fit=crop",
   "https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1080&auto=format&fit=crop",
   "https://images.unsplash.com/photo-1457369804613-52c61a468e7d?q=80&w=1080&auto=format&fit=crop",
@@ -164,7 +168,6 @@ export default function CreateScreen() {
           {PRESET_BACKGROUNDS.map((uri) => (
             <Pressable key={uri} testID={`background-preset-${PRESET_BACKGROUNDS.indexOf(uri)}`} onPress={() => { setBackground(uri); setBackgroundPreview(uri); }} style={[styles.bgTile, background === uri && styles.bgTileActive]}>
               <Image source={{ uri }} style={styles.bgThumb} contentFit="cover" />
-              <Text style={styles.bgLabel}>{t("create.preset")}</Text>
             </Pressable>
           ))}
           <Pressable testID="background-upload-button" onPress={pickBackground} disabled={uploading} style={[styles.bgTile, background !== null && !PRESET_BACKGROUNDS.includes(background) && styles.bgTileActive]}>
