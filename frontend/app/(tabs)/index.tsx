@@ -92,7 +92,7 @@ export default function FeedScreen() {
   const searchRef = useRef<View>(null);
   const notifRef = useRef<View>(null);
 
-  const openPanel = (mode: "search" | "rank" | "notif", ref: RefObject<View>) => {
+  const openPanel = (mode: "search" | "notif", ref: RefObject<View>) => {
     ref.current?.measureInWindow((x, y, width, height) => {
       setPanelRect({ x, y, width, height });
       setPanel(mode);
@@ -163,7 +163,7 @@ export default function FeedScreen() {
     if (user?.is_guest && answeredCount >= 5) { setGateOpen(true); return; }
     try {
       const result = await answerQuestion(question.question_id, index);
-      await Haptics.notificationAsync(result.correct ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning);
+      Haptics.notificationAsync(result.correct ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning).catch(() => {});
       setAnswered((old) => ({ ...old, [question.question_id]: { index, correct: result.correct, correctIndex: result.correct_index, explanation: result.explanation } }));
       setUser(result.user);
       if (typeof result.answered_count === "number") {
@@ -365,10 +365,9 @@ export default function FeedScreen() {
           </Pressable>
         </View>
 
-        <Pressable testID="streak-badge" onPress={() => setStreakOpen(true)} style={({ pressed }) => [styles.streakBadge, pressed && { opacity: 0.85 }]}>
-          <StreakMark size={32} />
-          <Text style={styles.streakCount}>{user.streak_count ?? 0}</Text>
-        </Pressable>
+        <View style={styles.headerCenter}><Pressable testID="streak-badge" onPress={() => setStreakOpen(true)} style={({ pressed }) => [styles.streakBadge, pressed && { opacity: 0.85 }]}>
+          <StreakMark size={32} /><View style={styles.streakDivider} /><Text style={styles.streakCount}>{user.streak_count ?? 0} {t("streak.days")}</Text>
+        </Pressable></View>
 
         <View style={[styles.headerSide, { alignItems: "flex-end" }]}>
           <Pressable ref={notifRef} collapsable={false} testID="feed-notifications-button" onPress={() => openPanel("notif", notifRef)} style={({ pressed }) => [styles.notifButton, pressed && { opacity: 0.85 }]}>
@@ -722,8 +721,10 @@ const useStyles = makeStyles((colors) => StyleSheet.create({
   headerSide: { flex: 1, justifyContent: "center" },
   searchBox: { flexDirection: "row", alignItems: "center", gap: 7, height: 40, paddingHorizontal: 12, borderRadius: 999, backgroundColor: "rgba(18,14,11,0.45)", borderWidth: 1, borderColor: "rgba(255,255,255,0.2)" },
   searchBoxText: { color: colors.onSurfaceInverse, opacity: 0.6, fontSize: 12, fontWeight: "600" },
-  streakBadge: { flexDirection: "row", alignItems: "center", gap: 7, height: 40, paddingHorizontal: 6, paddingRight: 12, backgroundColor: "rgba(18,14,11,0.45)", borderWidth: 1, borderColor: "rgba(255,255,255,0.2)", borderRadius: 999 },
-  streakCount: { color: colors.onSurfaceInverse, fontSize: 15, fontWeight: "900", minWidth: 12, textAlign: "center" },
+  headerCenter: { flex: 1, alignItems: "center" },
+  streakBadge: { flexDirection: "row", alignItems: "center", gap: 7, height: 40, paddingHorizontal: 5, paddingRight: 10, backgroundColor: "rgba(18,14,11,0.45)", borderWidth: 1, borderColor: "rgba(255,255,255,0.2)", borderRadius: 999 },
+  streakDivider: { width: 1, height: 17, backgroundColor: "rgba(255,255,255,0.26)" },
+  streakCount: { color: colors.onSurfaceInverse, fontSize: 11, fontWeight: "900", textAlign: "center" },
   notifButton: { flexDirection: "row", alignItems: "center", gap: 6, height: 40, paddingHorizontal: 12, borderRadius: 999, backgroundColor: "rgba(18,14,11,0.45)", borderWidth: 1, borderColor: "rgba(255,255,255,0.2)" },
   notifLabel: { color: colors.onSurfaceInverse, fontSize: 11, fontWeight: "800" },
   notifBadge: { position: "absolute", top: 2, right: 2, minWidth: 16, height: 16, borderRadius: 8, alignItems: "center", justifyContent: "center", paddingHorizontal: 3 },
