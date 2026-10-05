@@ -172,7 +172,7 @@ const DICT: Dict = {
   "streak.current": { tr: "Mevcut Seri", en: "Current streak", de: "", ru: "", it: "", fr: "", ar: "", zh: "" },
   "streak.longest": { tr: "En Uzun Seri", en: "Longest streak", de: "", ru: "", it: "", fr: "", ar: "", zh: "" },
   "streak.close": { tr: "Kapat", en: "Close", de: "", ru: "", it: "", fr: "", ar: "", zh: "" },
-  "streak.days": { tr: "günlük seri", en: "day streak", de: "", ru: "", it: "", fr: "", ar: "", zh: "" },
+  "streak.days": { tr: "Günlük Seri", en: "Daily Streak", de: "", ru: "", it: "", fr: "", ar: "", zh: "" },
   "admin.moderation": { tr: "Yönetim", en: "Moderation", de: "", ru: "", it: "", fr: "", ar: "", zh: "" },
   "admin.active": { tr: "Aktif", en: "Active", de: "", ru: "", it: "", fr: "", ar: "", zh: "" },
   "admin.suspended": { tr: "Askıda", en: "Suspended", de: "", ru: "", it: "", fr: "", ar: "", zh: "" },
