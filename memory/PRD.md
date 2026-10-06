@@ -73,6 +73,10 @@ TikTok/Reels tarzı dikey kaydırmalı bir öğrenme uygulaması: kullanıcılar
 - Keşfet araması, yazılan kullanıcı adını `/api/users/search` üzerinden arar; sonuçlarda avatar ve `@kullanıcıadı` görünür, seçim ilgili herkese açık profile yönlendirir.
 - Paylaşım sayfası kapatıldığında seçili soru durumu da temizlenir; böylece Yorumlar sayfası yanlışlıkla açılmaz.
 
+## Implemented (2026-10-04) — Genişletilmiş soru kategorileri
+- Mevcut sıralama korunarak Psikoloji, Mitoloji, Spor, Müzik, Sanat, Yemek / Mutfak, Kültürler, Felsefe, Hukuk & Toplum, Ekonomi ve Önemli İsimler eklendi.
+- Tüm yeni kategoriler mevcut Ionicons eşlemelerini ve kategori seçim/gösterim akışını kullanır; veri modeli ve eski kategori değerleri değişmedi.
+
 ## Prioritized Backlog
 - **P0**: Android production APK: gerçek production backend URL'sini build ortamına `EXPO_PUBLIC_BACKEND_URL` olarak tanımla, Atlas üretim bağlantısını doğrula ve APK'yı bu URL ile yeniden oluştur.
 - **P0**: Rütbe sistemi UI'ı (kullanıcı rütbe isimlerini/eşiklerini verecek — bekleniyor)

@@ -19,6 +19,17 @@ export const CATEGORY_DEFS: CategoryDef[] = [
   { key: "biology", value: "Biyoloji", icon: "leaf-outline" },
   { key: "literature", value: "Edebiyat", icon: "book-outline" },
   { key: "movies", value: "Filmler ve Diziler", icon: "film-outline" },
+  { key: "psychology", value: "Psikoloji", icon: "brain-outline" },
+  { key: "mythology", value: "Mitoloji", icon: "business-outline" },
+  { key: "sports", value: "Spor", icon: "trophy-outline" },
+  { key: "music", value: "Müzik", icon: "musical-notes-outline" },
+  { key: "art", value: "Sanat", icon: "color-palette-outline" },
+  { key: "cuisine", value: "Yemek / Mutfak", icon: "restaurant-outline" },
+  { key: "cultures", value: "Kültürler", icon: "earth-outline" },
+  { key: "philosophy", value: "Felsefe", icon: "bulb-outline" },
+  { key: "lawSociety", value: "Hukuk & Toplum", icon: "scale-outline" },
+  { key: "economics", value: "Ekonomi", icon: "trending-up-outline" },
+  { key: "notablePeople", value: "Önemli İsimler", icon: "person-circle-outline" },
 ];
 
 export function categoryIcon(value: string): keyof typeof Ionicons.glyphMap {
