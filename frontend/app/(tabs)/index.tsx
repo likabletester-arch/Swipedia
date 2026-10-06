@@ -253,14 +253,18 @@ export default function FeedScreen() {
     }
   };
 
+  const closeShare = () => {
+    setShareOpen(false);
+    setActive(null);
+    setNote("");
+  };
+
   const shareTo = async (person: Person) => {
     if (!active) return;
     try {
       await sendMessage(person.user_id, note.trim() || t("feed.lookAtThis", { text: active.text }), active.question_id);
       setQuestions((old) => old.map((q) => (q.question_id === active.question_id ? { ...q, shares_count: q.shares_count + 1 } : q)));
-      setShareOpen(false);
-      setActive(null);
-      setNote("");
+      closeShare();
       toast.show(t("feed.shared", { name: person.name }));
     } catch {
       toast.show(t("feed.shareFailed"));
@@ -437,9 +441,9 @@ export default function FeedScreen() {
         </View>
       </Modal>
 
-      <Modal visible={shareOpen} transparent animationType="slide" onRequestClose={() => setShareOpen(false)}>
+      <Modal visible={shareOpen} transparent animationType="slide" onRequestClose={closeShare}>
         <View style={styles.modalBackdrop}>
-          <Pressable style={{ flex: 1 }} onPress={() => setShareOpen(false)} />
+          <Pressable testID="share-sheet-dismiss" style={{ flex: 1 }} onPress={closeShare} />
           <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}>
             <View style={styles.sheet} testID="share-sheet">
               <View style={styles.sheetHandle} />

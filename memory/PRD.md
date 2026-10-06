@@ -69,6 +69,10 @@ TikTok/Reels tarzı dikey kaydırmalı bir öğrenme uygulaması: kullanıcılar
 ## Implemented (2026-10-04) — Keşfet soru açma
 - Arama → Keşfet kartları dokunulabilir. Kartın gerçek `question_id` değeri ana feed'e aktarılır; seçilen soru mevcut swipe listesine ilk sırada eklenir, aynı kayıt tekrar etmez ve liste başa kayar. Sonraki swipe mevcut random akışla devam eder.
 
+## Implemented (2026-10-04) — Kullanıcı adı araması ve paylaşım kapanışı
+- Keşfet araması, yazılan kullanıcı adını `/api/users/search` üzerinden arar; sonuçlarda avatar ve `@kullanıcıadı` görünür, seçim ilgili herkese açık profile yönlendirir.
+- Paylaşım sayfası kapatıldığında seçili soru durumu da temizlenir; böylece Yorumlar sayfası yanlışlıkla açılmaz.
+
 ## Prioritized Backlog
 - **P0**: Android production APK: gerçek production backend URL'sini build ortamına `EXPO_PUBLIC_BACKEND_URL` olarak tanımla, Atlas üretim bağlantısını doğrula ve APK'yı bu URL ile yeniden oluştur.
 - **P0**: Rütbe sistemi UI'ı (kullanıcı rütbe isimlerini/eşiklerini verecek — bekleniyor)

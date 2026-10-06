@@ -1462,6 +1462,18 @@ async def people(user: Dict[str, Any] = Depends(get_current_user)) -> List[Dict[
     return rows
 
 
+@api_router.get("/users/search")
+async def search_users(q: str = "", user: Dict[str, Any] = Depends(get_current_user)) -> List[Dict[str, Any]]:
+    """Kullanıcı adının başına göre güvenli, küçük bir kullanıcı sonucu döndürür."""
+    username_query = slugify_username(q)
+    if not username_query:
+        return []
+    return await db.users.find(
+        {"provider": {"$ne": "guest"}, "username": {"$regex": f"^{re.escape(username_query)}", "$options": "i"}},
+        {"_id": 0, "user_id": 1, "name": 1, "username": 1, "bio": 1, "points": 1, "avatar": 1},
+    ).sort("username", 1).to_list(20)
+
+
 # ---------- Notifications ----------
 
 NOTIFICATION_TYPES = {"points", "rank_up", "comment", "mention", "share", "system", "like", "follow", "new_question"}

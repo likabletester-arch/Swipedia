@@ -222,6 +222,7 @@ export const fetchSavedQuestions = () => api<Question[]>("/saved-questions", {},
 export const fetchMyQuestions = () => api<Question[]>("/my-questions", {}, true);
 export const fetchUserProfile = (userId: string) => api<{ user: User; questions: Question[] }>(`/users/${userId}/profile`);
 export const fetchPeople = () => api<Person[]>("/people", {}, true);
+export const fetchUserSearch = (query: string) => api<Person[]>(`/users/search?q=${encodeURIComponent(query)}`, {}, true);
 export const fetchConversations = () => api<Conversation[]>("/conversations", {}, true);
 export const fetchMessages = (userId: string) => api<Message[]>(`/conversations/${userId}/messages`, {}, true);
 export const sendMessage = (userId: string, text: string, questionId?: string) =>

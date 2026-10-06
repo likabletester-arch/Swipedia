@@ -6,7 +6,7 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { fetchFeed, fetchPeople, fileUrl, type Person, type Question } from "@/src/api";
+import { fetchFeed, fetchUserSearch, fileUrl, type Person, type Question } from "@/src/api";
 import { categoryIcon } from "@/src/categories";
 import { UserAvatar } from "@/src/components/user-avatar";
 import { useI18n } from "@/src/i18n";
@@ -20,18 +20,28 @@ export function SearchPanel({ questions, onClose, onQuestionOpen }: { questions:
   const router = useRouter();
   const inputRef = useRef<TextInput>(null);
   const [query, setQuery] = useState("");
-  const [people, setPeople] = useState<Person[]>([]);
+  const [userResults, setUserResults] = useState<Person[]>([]);
   const [discover, setDiscover] = useState<Question[]>([]);
+  const q = query.trim().toLowerCase();
 
   useEffect(() => {
-    fetchPeople().then(setPeople).catch(() => setPeople([]));
     fetchFeed(12).then(setDiscover).catch(() => setDiscover([]));
     const timer = setTimeout(() => inputRef.current?.focus(), 350);
     return () => clearTimeout(timer);
   }, []);
 
-  const q = query.trim().toLowerCase();
-  const userResults = useMemo(() => (q ? people.filter((p) => p.name?.toLowerCase().includes(q) || p.bio?.toLowerCase().includes(q)).slice(0, 20) : []), [q, people]);
+  useEffect(() => {
+    if (!q) {
+      setUserResults([]);
+      return;
+    }
+    let active = true;
+    const timer = setTimeout(() => {
+      fetchUserSearch(q).then((results) => { if (active) setUserResults(results); }).catch(() => { if (active) setUserResults([]); });
+    }, 220);
+    return () => { active = false; clearTimeout(timer); };
+  }, [q]);
+
   const questionResults = useMemo(() => (q ? questions.filter((item) => item.text?.toLowerCase().includes(q) || item.category?.toLowerCase().includes(q)).slice(0, 30) : []), [q, questions]);
 
   const goUser = (userId: string) => { onClose(); router.push(`/user/${userId}`); };
@@ -52,7 +62,7 @@ export function SearchPanel({ questions, onClose, onQuestionOpen }: { questions:
           returnKeyType="search"
         />
         {!!query && (
-          <TouchableOpacity onPress={() => setQuery("")} hitSlop={10}>
+          <TouchableOpacity testID="search-clear-button" onPress={() => setQuery("")} hitSlop={10}>
             <Ionicons name="close-circle" size={18} color={colors.muted} />
           </TouchableOpacity>
         )}
@@ -82,7 +92,7 @@ export function SearchPanel({ questions, onClose, onQuestionOpen }: { questions:
                     <UserAvatar avatar={p.avatar} name={p.name} size={40} radius={14} />
                     <View style={{ flex: 1 }}>
                       <Text style={styles.userName} numberOfLines={1}>{p.name}</Text>
-                      {!!p.bio && <Text style={styles.userBio} numberOfLines={1}>{p.bio}</Text>}
+                      <Text style={styles.userBio} numberOfLines={1}>@{p.username}{p.bio ? ` · ${p.bio}` : ""}</Text>
                     </View>
                     <Ionicons name="chevron-forward" size={16} color={colors.muted} />
                   </TouchableOpacity>
