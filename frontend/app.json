@@ -17,7 +17,7 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#FD593E"
       },
-      "package": "com.emergent.microgenius.g5xlo1"
+      "package": "com.swipedia.app"
     },
     "web": {
       "bundler": "metro",
