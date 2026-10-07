@@ -17,12 +17,12 @@ export default function TabsLayout() {
     return (
       <NativeTabs>
         <NativeTabs.Trigger name="ranks">
-          <NativeTabs.Trigger.Icon sf="trophy.fill" />
-          <NativeTabs.Trigger.Label>{t("tabs.ranks")}</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon sf="chart.line.uptrend.xyaxis" />
+          <NativeTabs.Trigger.Label hidden>{t("tabs.ranks")}</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
         <NativeTabs.Trigger name="create">
           <NativeTabs.Trigger.Icon sf="plus.circle.fill" />
-          <NativeTabs.Trigger.Label>{t("tabs.create")}</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Label hidden>{t("tabs.create")}</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
         <NativeTabs.Trigger name="index">
           <NativeTabs.Trigger.Icon sf="safari.fill" />
@@ -30,11 +30,11 @@ export default function TabsLayout() {
         </NativeTabs.Trigger>
         <NativeTabs.Trigger name="chat">
           <NativeTabs.Trigger.Icon sf="bubble.left.and.bubble.right.fill" />
-          <NativeTabs.Trigger.Label>{t("tabs.chat")}</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Label hidden>{t("tabs.chat")}</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
         <NativeTabs.Trigger name="profile">
           <NativeTabs.Trigger.Icon sf="person.crop.circle.fill" />
-          <NativeTabs.Trigger.Label>{t("tabs.profile")}</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Label hidden>{t("tabs.profile")}</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
       </NativeTabs>
     );

@@ -11,9 +11,9 @@ import { useTheme } from "@/src/theme";
 
 type Item = { name: string; labelKey: string; icon: keyof typeof Ionicons.glyphMap };
 
-// Sol: Rütbeler + Oluştur · Orta: Keşfet (%25 büyük) · Sağ: Mesaj + Profil
+// Sol: Rütbeler + Oluştur · Orta: Swipe · Sağ: Mesaj + Profil
 const ITEMS: Item[] = [
-  { name: "ranks", labelKey: "tabs.ranks", icon: "trophy-outline" },
+  { name: "ranks", labelKey: "tabs.ranks", icon: "trending-up-outline" },
   { name: "create", labelKey: "tabs.create", icon: "add-circle-outline" },
   { name: "index", labelKey: "tabs.explore", icon: "compass" },
   { name: "chat", labelKey: "tabs.chat", icon: "chatbubble-ellipses-outline" },
@@ -81,8 +81,7 @@ export function CustomTabBar({ state, navigation }: BottomTabBarProps) {
 
         return (
           <Pressable key={item.name} testID={`tab-${item.name}`} onPress={onPress} style={({ pressed }) => [styles.slot, pressed && { opacity: 0.7 }]}>
-            <AnimatedIcon name={item.icon} color={color} size={22} focused={focused} />
-            <Text style={[styles.label, { color }]}>{t(item.labelKey)}</Text>
+            <AnimatedIcon name={item.icon} color={color} size={25.3} focused={focused} />
           </Pressable>
         );
       })}
@@ -101,9 +100,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: 3,
-    minHeight: 48,
-    marginBottom: 6,
+    minHeight: 62,
   },
   centerSlot: {
     flex: 1,
