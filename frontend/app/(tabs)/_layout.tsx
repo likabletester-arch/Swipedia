@@ -17,7 +17,7 @@ export default function TabsLayout() {
     return (
       <NativeTabs>
         <NativeTabs.Trigger name="ranks">
-          <NativeTabs.Trigger.Icon sf="chart.line.uptrend.xyaxis" />
+          <NativeTabs.Trigger.Icon sf="list.number" />
           <NativeTabs.Trigger.Label hidden>{t("tabs.ranks")}</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
         <NativeTabs.Trigger name="create">

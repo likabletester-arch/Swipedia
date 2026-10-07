@@ -86,7 +86,7 @@ TikTok/Reels tarzı dikey kaydırmalı bir öğrenme uygulaması: kullanıcılar
 
 ## Implemented (2026-10-04) — Sade alt navigasyon
 - Swipe öğesi mevcut ikon ve etiketiyle korundu; diğer sekmelerin etiketleri kaldırıldı ve ikonları %15 büyütülerek dikey olarak ortalandı.
-- Rütbeler sekmesindeki kupa, mevcut ikon sisteminden yükselen grafik/sıralama simgesiyle değiştirildi.
+- Rütbeler sekmesindeki kupa, Ekonomi kategorisinden ayrışan podium/sıralama simgesiyle değiştirildi.
 
 ## Prioritized Backlog
 - **P0**: Android production APK: gerçek production backend URL'sini build ortamına `EXPO_PUBLIC_BACKEND_URL` olarak tanımla, Atlas üretim bağlantısını doğrula ve APK'yı bu URL ile yeniden oluştur.

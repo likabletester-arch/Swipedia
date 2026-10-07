@@ -13,7 +13,7 @@ type Item = { name: string; labelKey: string; icon: keyof typeof Ionicons.glyphM
 
 // Sol: Rütbeler + Oluştur · Orta: Swipe · Sağ: Mesaj + Profil
 const ITEMS: Item[] = [
-  { name: "ranks", labelKey: "tabs.ranks", icon: "trending-up-outline" },
+  { name: "ranks", labelKey: "tabs.ranks", icon: "podium-outline" },
   { name: "create", labelKey: "tabs.create", icon: "add-circle-outline" },
   { name: "index", labelKey: "tabs.explore", icon: "compass" },
   { name: "chat", labelKey: "tabs.chat", icon: "chatbubble-ellipses-outline" },
