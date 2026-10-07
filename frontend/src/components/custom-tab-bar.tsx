@@ -74,6 +74,7 @@ export function CustomTabBar({ state, navigation }: BottomTabBarProps) {
               <View style={[styles.centerButton, { backgroundColor: colors.brandPrimary, shadowColor: colors.brandPrimary }]}>
                 <AnimatedIcon name={item.icon} color={colors.onBrandPrimary} size={28} focused={focused} />
               </View>
+              <View style={styles.centerLabelSpacer} />
             </Pressable>
           );
         }
@@ -122,5 +123,6 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
   },
+  centerLabelSpacer: { height: 12 },
   label: { fontSize: 10, fontWeight: "800" },
 });
