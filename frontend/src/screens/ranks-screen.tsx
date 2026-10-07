@@ -33,7 +33,7 @@ export default function RanksScreen() {
   const upcoming = nextRank(user.points);
   const progress = upcoming ? Math.min(1, (user.points - current.min) / (upcoming.min - current.min)) : 1;
   const top3 = leaders.slice(0, 3);
-  const rest = leaders.slice(3, 100);
+  const rest = leaders.slice(3, 10);
 
   return (
     <View style={styles.screen} testID="ranks-screen">

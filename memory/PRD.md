@@ -77,6 +77,9 @@ TikTok/Reels tarzı dikey kaydırmalı bir öğrenme uygulaması: kullanıcılar
 - Mevcut sıralama korunarak Psikoloji, Mitoloji, Spor, Müzik, Sanat, Yemek / Mutfak, Kültürler, Felsefe, Hukuk & Toplum, Ekonomi ve Önemli İsimler eklendi.
 - Tüm yeni kategoriler mevcut Ionicons eşlemelerini ve kategori seçim/gösterim akışını kullanır; veri modeli ve eski kategori değerleri değişmedi.
 
+## Implemented (2026-10-04) — Top 10 liderlik tablosu
+- Liderlik sorgusu puan ve doğru cevap sıralamasını koruyarak en fazla 10 kullanıcı döndürür; ekran da yalnızca ilk 10 kaydı gösterir.
+
 ## Prioritized Backlog
 - **P0**: Android production APK: gerçek production backend URL'sini build ortamına `EXPO_PUBLIC_BACKEND_URL` olarak tanımla, Atlas üretim bağlantısını doğrula ve APK'yı bu URL ile yeniden oluştur.
 - **P0**: Rütbe sistemi UI'ı (kullanıcı rütbe isimlerini/eşiklerini verecek — bekleniyor)

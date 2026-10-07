@@ -1284,7 +1284,7 @@ async def create_question(payload: QuestionCreate, user: Dict[str, Any] = Depend
 
 @api_router.get("/leaderboard")
 async def leaderboard() -> List[Dict[str, Any]]:
-    users = await db.users.find({"provider": {"$ne": "guest"}, "is_admin": {"$ne": True}}, {"_id": 0, "name": 1, "user_id": 1, "points": 1, "correct_count": 1, "avatar": 1}).sort([("points", -1), ("correct_count", -1)]).to_list(100)
+    users = await db.users.find({"provider": {"$ne": "guest"}, "is_admin": {"$ne": True}}, {"_id": 0, "name": 1, "user_id": 1, "points": 1, "correct_count": 1, "avatar": 1}).sort([("points", -1), ("correct_count", -1)]).to_list(10)
     return [{**item, "points": int(float(item.get("points", 0))), "avatar": item.get("avatar", ""), "rank": index + 1} for index, item in enumerate(users)]
 
 

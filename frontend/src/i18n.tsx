@@ -186,7 +186,7 @@ const DICT: Dict = {
   "creator.max": { tr: "En yüksek seviye 🎉", en: "Top tier reached 🎉", de: "Höchste Stufe 🎉", ru: "Высший уровень 🎉", it: "Livello massimo 🎉", fr: "Niveau maximum 🎉", ar: "أعلى مستوى 🎉", zh: "已达最高等级 🎉" },
   "creator.toNext": { tr: "Sonraki seviyeye {n} soru", en: "{n} more to next tier", de: "Noch {n} bis zur nächsten Stufe", ru: "Ещё {n} до следующего уровня", it: "{n} alla prossima soglia", fr: "{n} avant le prochain niveau", ar: "{n} للمستوى التالي", zh: "再 {n} 个升级" },
   "ranks.leaderboard": { tr: "Meraklılar", en: "Curious minds", de: "Neugierige", ru: "Любознательные", it: "I curiosi", fr: "Les curieux", ar: "الفضوليون", zh: "好奇榜" },
-  "ranks.leaderboardHint": { tr: "İlk 100 sıralaması · dokunarak aç", en: "Top 100 ranking · tap to open", de: "Top 100 · zum Öffnen tippen", ru: "Топ-100 · нажмите, чтобы открыть", it: "Top 100 · tocca per aprire", fr: "Top 100 · touche pour ouvrir", ar: "أفضل 100 · اضغط للفتح", zh: "前100名 · 点击展开" },
+  "ranks.leaderboardHint": { tr: "İlk 10 sıralaması · dokunarak aç", en: "Top 10 ranking · tap to open", de: "Top 10 · zum Öffnen tippen", ru: "Топ-10 · нажмите, чтобы открыть", it: "Top 10 · tocca per aprire", fr: "Top 10 · touche pour ouvrir", ar: "أفضل 10 · اضغط للفتح", zh: "前10名 · 点击展开" },
 
   "settings.title": { tr: "Ayarlar", en: "Settings", de: "Einstellungen", ru: "Настройки", it: "Impostazioni", fr: "Réglages", ar: "الإعدادات", zh: "设置" },
   "settings.profileSection": { tr: "Profili düzenle", en: "Edit profile", de: "Profil bearbeiten", ru: "Редактировать профиль", it: "Modifica profilo", fr: "Modifier le profil", ar: "تعديل الملف", zh: "编辑资料" },
