@@ -74,7 +74,6 @@ export function CustomTabBar({ state, navigation }: BottomTabBarProps) {
               <View style={[styles.centerButton, { backgroundColor: colors.brandPrimary, shadowColor: colors.brandPrimary }]}>
                 <AnimatedIcon name={item.icon} color={colors.onBrandPrimary} size={28} focused={focused} />
               </View>
-              <Text style={[styles.label, { color }]}>{t(item.labelKey)}</Text>
             </Pressable>
           );
         }

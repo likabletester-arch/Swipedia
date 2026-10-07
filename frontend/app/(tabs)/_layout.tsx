@@ -26,7 +26,7 @@ export default function TabsLayout() {
         </NativeTabs.Trigger>
         <NativeTabs.Trigger name="index">
           <NativeTabs.Trigger.Icon sf="safari.fill" />
-          <NativeTabs.Trigger.Label>{t("tabs.explore")}</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Label hidden>{t("tabs.explore")}</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
         <NativeTabs.Trigger name="chat">
           <NativeTabs.Trigger.Icon sf="bubble.left.and.bubble.right.fill" />

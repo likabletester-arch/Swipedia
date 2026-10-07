@@ -85,7 +85,7 @@ TikTok/Reels tarzı dikey kaydırmalı bir öğrenme uygulaması: kullanıcılar
 - Bildirimler (boş durum dahil) ve mesaj konuşma listesi aynı gerçek veri yenileme davranışını destekler; bağlantı hatasında görünür veriler korunur.
 
 ## Implemented (2026-10-04) — Sade alt navigasyon
-- Swipe öğesi mevcut ikon ve etiketiyle korundu; diğer sekmelerin etiketleri kaldırıldı ve ikonları %15 büyütülerek dikey olarak ortalandı.
+- Swipe dahil tüm alt navigasyon etiketleri kaldırıldı; Swipe ikonu korunurken diğer sekme ikonları %15 büyütülerek dikey olarak ortalandı.
 - Rütbeler sekmesindeki kupa, Ekonomi kategorisinden ayrışan podium/sıralama simgesiyle değiştirildi.
 
 ## Prioritized Backlog
