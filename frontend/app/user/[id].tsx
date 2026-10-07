@@ -1,10 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -36,29 +37,40 @@ export default function PublicProfileScreen() {
   const [profile, setProfile] = useState<User | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
   const [moderation, setModeration] = useState<ModerationSummary | null>(null);
 
-  useEffect(() => {
-    let active = true;
-    setLoading(true);
-    setNotFound(false);
-    fetchUserProfile(String(id))
-      .then((res) => {
-        if (!active) return;
-        setProfile(res.user);
-        setQuestions(res.questions);
-      })
-      .catch(() => active && setNotFound(true))
-      .finally(() => active && setLoading(false));
-    return () => { active = false; };
-  }, [id]);
+  const load = useCallback(async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+      setNotFound(false);
+    }
+    try {
+      const result = await fetchUserProfile(String(id));
+      setProfile(result.user);
+      setQuestions(result.questions);
+      if (me?.is_admin) {
+        try {
+          const summary = await fetchModeration(String(id));
+          setModeration(summary);
+          setQuestions(summary.questions);
+        } catch {
+          setModeration(null);
+        }
+      }
+    } catch {
+      if (!silent) setNotFound(true);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [id, me?.is_admin]);
 
   useEffect(() => {
-    if (!me?.is_admin || !id) return;
-    fetchModeration(String(id)).then((summary) => { setModeration(summary); setQuestions(summary.questions); }).catch(() => setModeration(null));
-  }, [id, me?.is_admin]);
+    load();
+  }, [load]);
 
   const rank = profile ? rankFor(profile.points) : null;
   const isSelf = !!me && !!profile && me.user_id === profile.user_id;
@@ -112,7 +124,10 @@ export default function PublicProfileScreen() {
       ) : notFound || !profile || !rank ? (
         <Text style={styles.emptyText}>{t("profile.notFound")}</Text>
       ) : (
-        <ScrollView contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 26 }]}>
+        <ScrollView
+          contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 26 }]}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { if (!refreshing) { setRefreshing(true); load(true); } }} tintColor={colors.brandPrimary} />}
+        >
           <FadeSlideIn><View style={styles.profileTop}>
             <UserAvatar avatar={profile.avatar} name={profile.name} size={74} radius={25} />
             <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 10 }}>

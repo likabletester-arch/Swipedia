@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -22,6 +22,7 @@ export function SearchPanel({ questions, onClose, onQuestionOpen }: { questions:
   const [query, setQuery] = useState("");
   const [userResults, setUserResults] = useState<Person[]>([]);
   const [discover, setDiscover] = useState<Question[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
   const q = query.trim().toLowerCase();
 
   useEffect(() => {
@@ -43,6 +44,19 @@ export function SearchPanel({ questions, onClose, onQuestionOpen }: { questions:
   }, [q]);
 
   const questionResults = useMemo(() => (q ? questions.filter((item) => item.text?.toLowerCase().includes(q) || item.category?.toLowerCase().includes(q)).slice(0, 30) : []), [q, questions]);
+
+  const refresh = useCallback(async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      if (q) setUserResults(await fetchUserSearch(q));
+      else setDiscover(await fetchFeed(12));
+    } catch {
+      // Mevcut arama sonuçları bağlantı hatasında korunur.
+    } finally {
+      setRefreshing(false);
+    }
+  }, [q, refreshing]);
 
   const goUser = (userId: string) => { onClose(); router.push(`/user/${userId}`); };
 
@@ -68,7 +82,11 @@ export function SearchPanel({ questions, onClose, onQuestionOpen }: { questions:
         )}
       </View>
 
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.brandPrimary} />}
+      >
         {!q ? (
           <View testID="search-discover-section">
             <Text style={styles.discoverTitle}>{t("discover.title")}</Text>

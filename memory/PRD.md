@@ -80,6 +80,10 @@ TikTok/Reels tarzı dikey kaydırmalı bir öğrenme uygulaması: kullanıcılar
 ## Implemented (2026-10-04) — Top 10 liderlik tablosu
 - Liderlik sorgusu puan ve doğru cevap sıralamasını koruyarak en fazla 10 kullanıcı döndürür; ekran da yalnızca ilk 10 kaydı gösterir.
 
+## Implemented (2026-10-04) — Veri ekranlarında aşağı çekerek yenileme
+- Mevcut `RefreshControl` yaklaşımıyla kendi profil (Paylaştıklarım/Kaydedilenler), başka kullanıcı profili, rütbeler/liderlik ve Arama/Keşfet güncel veriyi yeniden alır.
+- Bildirimler (boş durum dahil) ve mesaj konuşma listesi aynı gerçek veri yenileme davranışını destekler; bağlantı hatasında görünür veriler korunur.
+
 ## Prioritized Backlog
 - **P0**: Android production APK: gerçek production backend URL'sini build ortamına `EXPO_PUBLIC_BACKEND_URL` olarak tanımla, Atlas üretim bağlantısını doğrula ve APK'yı bu URL ile yeniden oluştur.
 - **P0**: Rütbe sistemi UI'ı (kullanıcı rütbe isimlerini/eşiklerini verecek — bekleniyor)

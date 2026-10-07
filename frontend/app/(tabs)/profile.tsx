@@ -1,11 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,7 +14,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { deleteQuestion, fetchMyQuestions, fetchSavedQuestions, fileUrl, type Question } from "@/src/api";
+import { currentUser, deleteQuestion, fetchMyQuestions, fetchSavedQuestions, fileUrl, type Question } from "@/src/api";
 import { useAuth } from "@/src/auth";
 import { categoryIcon } from "@/src/categories";
 import { FadeSlideIn } from "@/src/components/fade-slide-in";
@@ -34,7 +35,7 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { t, lang } = useI18n();
-  const { user, logout } = useAuth();
+  const { user, logout, setUser } = useAuth();
   const requireAccount = useRequireAccount();
   const bottomChrome = usesNativeTabs ? insets.bottom : 0;
 
@@ -42,20 +43,27 @@ export default function ProfileScreen() {
   const [shared, setShared] = useState<Question[]>([]);
   const [saved, setSaved] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [sharedBackgrounds, setSharedBackgrounds] = useState<Record<string, string>>({});
 
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    try {
+      const [mine, savedList, freshUser] = await Promise.all([fetchMyQuestions(), fetchSavedQuestions(), currentUser()]);
+      setShared(mine);
+      setSaved(savedList);
+      if (freshUser) setUser(freshUser);
+    } catch {
+      // Mevcut profil verileri bağlantı hatasında korunur.
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [setUser]);
+
   useEffect(() => {
-    let active = true;
-    setLoading(true);
-    Promise.all([fetchMyQuestions().catch(() => []), fetchSavedQuestions().catch(() => [])])
-      .then(([mine, savedList]) => {
-        if (!active) return;
-        setShared(mine);
-        setSaved(savedList);
-      })
-      .finally(() => active && setLoading(false));
-    return () => { active = false; };
-  }, []);
+    load();
+  }, [load]);
 
   useEffect(() => {
     let active = true;
@@ -106,7 +114,10 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={[styles.listContent, { paddingBottom: bottomChrome + 26 }]}>
+      <ScrollView
+        contentContainerStyle={[styles.listContent, { paddingBottom: bottomChrome + 26 }]}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { if (!refreshing) { setRefreshing(true); load(true); } }} tintColor={colors.brandPrimary} />}
+      >
         <FadeSlideIn><View style={styles.profileTop}>
           <UserAvatar avatar={user.avatar} name={user.name} size={74} radius={25} />
           <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 10 }}>

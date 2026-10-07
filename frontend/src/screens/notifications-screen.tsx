@@ -6,6 +6,7 @@ import {
   FlatList,
   Pressable,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -185,13 +186,16 @@ export default function NotificationsScreen() {
           <ActivityIndicator size="large" color={colors.brandPrimary} />
         </View>
       ) : notifications.length === 0 ? (
-        <View style={styles.centered}>
+        <ScrollView
+          contentContainerStyle={styles.centered}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { if (!refreshing) { setRefreshing(true); load(true); } }} tintColor={colors.brandPrimary} />}
+        >
           <View style={[styles.emptyIconWrap, { backgroundColor: colors.surfaceSecondary }]}>
             <Ionicons name="notifications-off-outline" size={36} color={colors.muted} />
           </View>
           <Text style={styles.emptyTitle}>{t("notif.empty")}</Text>
           <Text style={styles.emptyHint}>{t("notif.emptyHint")}</Text>
-        </View>
+        </ScrollView>
       ) : (
         <FlatList
           data={notifications}

@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { fetchLeaderboard, type Leader } from "@/src/api";
@@ -23,10 +23,21 @@ export default function RanksScreen() {
   const bottomChrome = usesNativeTabs ? insets.bottom : 0;
   const [leaders, setLeaders] = useState<Leader[]>([]);
   const [boardOpen, setBoardOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      setLeaders(await fetchLeaderboard());
+    } catch {
+      // Mevcut sıralama bağlantı hatasında korunur.
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => {
-    fetchLeaderboard().then(setLeaders).catch(() => setLeaders([]));
-  }, []);
+    load();
+  }, [load]);
 
   if (!user) return null;
   const current = rankFor(user.points);
@@ -42,7 +53,10 @@ export default function RanksScreen() {
         <Text style={styles.headerHint}>{t("ranks.hint")}</Text>
       </View>
 
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: bottomChrome + 26 }]}>
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: bottomChrome + 26 }]}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { if (!refreshing) { setRefreshing(true); load(); } }} tintColor={colors.brandPrimary} />}
+      >
         <FadeSlideIn><View style={styles.currentCard} testID="current-rank-card">
           <View style={[styles.currentIcon, { backgroundColor: current.color }]}>
             <Ionicons name={current.icon} size={26} color="#FFFFFF" />
