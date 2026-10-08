@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 import {
   ActivityIndicator,
   FlatList,
+  Keyboard,
   Modal,
   Platform,
   Pressable,
@@ -82,8 +83,23 @@ export default function FeedScreen() {
   const [people, setPeople] = useState<Person[]>([]);
   const [note, setNote] = useState("");
   const [unreadCount, setUnreadCount] = useState(0);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
   const loadingMore = useRef(false);
   const feedRef = useRef<FlatList<Question>>(null);
+  const commentInputRef = useRef<TextInput>(null);
+  const commentSheetHeight = useSharedValue(0);
+  const commentSheetStyle = useAnimatedStyle(() => ({ height: commentSheetHeight.value }));
+
+  useEffect(() => {
+    const show = Keyboard.addListener(Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow", () => setKeyboardOpen(true));
+    const hide = Keyboard.addListener(Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide", () => setKeyboardOpen(false));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
+
+  useEffect(() => {
+    if (!viewport) return;
+    commentSheetHeight.value = withTiming(viewport * (keyboardOpen ? 0.5 : 0.62), { duration: 240 });
+  }, [commentSheetHeight, keyboardOpen, viewport]);
 
   // Üst menü genişleyen overlay: arama / rütbe / bildirimler
   const [panel, setPanel] = useState<null | "search" | "notif">(null);
@@ -409,14 +425,14 @@ export default function FeedScreen() {
         </View>
       </Animated.View>
 
-      <Modal visible={!!active && !shareOpen} transparent animationType="slide" onRequestClose={() => setActive(null)}>
+      <Modal visible={!!active && !shareOpen} transparent animationType="slide" onRequestClose={() => setActive(null)} onShow={() => requestAnimationFrame(() => commentInputRef.current?.focus())}>
         <View style={styles.modalBackdrop}>
           <Pressable style={{ flex: 1 }} onPress={() => setActive(null)} />
           <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}>
-            <View style={styles.sheet} testID="comments-sheet">
+            <Animated.View style={[styles.sheet, styles.commentsSheet, commentSheetStyle]} testID="comments-sheet">
               <View style={styles.sheetHandle} />
               <Text style={styles.sheetTitle}>{t("feed.comments")}</Text>
-              <ScrollView style={{ flexGrow: 0 }}>
+              <ScrollView style={styles.commentList} contentContainerStyle={styles.commentListContent} keyboardShouldPersistTaps="handled">
                 {comments.length ? comments.map((item) => (
                   <View key={item.comment_id} style={styles.commentRow}>
                     <Text style={styles.commentAuthor}>{item.user_name}</Text>
@@ -431,12 +447,12 @@ export default function FeedScreen() {
                 </Pressable>)}
               </View>}
               <View style={styles.rowInput}>
-                <TextInput testID="comment-input" value={commentText} onChangeText={setCommentText} placeholder={t("feed.commentPlaceholder")} placeholderTextColor={colors.muted} style={[styles.input, styles.flexInput]} />
+                <TextInput ref={commentInputRef} testID="comment-input" value={commentText} onChangeText={setCommentText} placeholder={t("feed.commentPlaceholder")} placeholderTextColor={colors.muted} style={[styles.input, styles.flexInput]} />
                 <Pressable testID="comment-send-button" onPress={postComment} style={styles.sendButton}>
                   <Ionicons name="arrow-up" size={18} color={colors.onBrandPrimary} />
                 </Pressable>
               </View>
-            </View>
+            </Animated.View>
           </KeyboardAvoidingView>
         </View>
       </Modal>
@@ -764,6 +780,7 @@ const useStyles = makeStyles((colors) => StyleSheet.create({
   railLabel: { color: colors.onSurfaceInverse, fontSize: 9, fontWeight: "800", marginBottom: 7 },
   modalBackdrop: { flex: 1, backgroundColor: "rgba(31,28,24,0.45)", justifyContent: "flex-end" },
   sheet: { backgroundColor: colors.surface, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 18, paddingBottom: 24, maxHeight: 520 },
+  commentsSheet: { maxHeight: "100%" },
   sheetHandle: { width: 36, height: 4, borderRadius: 3, backgroundColor: colors.borderStrong, alignSelf: "center", marginBottom: 13 },
   sheetTitle: { color: colors.onSurface, fontSize: 15, fontWeight: "900", marginBottom: 11 },
   shareSection: { color: colors.muted, fontSize: 9, fontWeight: "900", letterSpacing: 0.6, marginBottom: 8 },
@@ -775,6 +792,8 @@ const useStyles = makeStyles((colors) => StyleSheet.create({
   commentAuthor: { color: colors.onSurface, fontWeight: "800", fontSize: 10 },
   commentText: { color: colors.onSurfaceSecondary, fontSize: 11, marginTop: 3, lineHeight: 16 },
   commentMention: { color: colors.brandPrimary, fontWeight: "900" },
+  commentList: { flex: 1, minHeight: 0 },
+  commentListContent: { paddingBottom: 4 },
   mentionSuggestions: { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceSecondary, borderRadius: 13, marginTop: 8, overflow: "hidden" },
   mentionRow: { minHeight: 38, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 10, borderBottomWidth: 1, borderBottomColor: colors.divider },
   mentionName: { color: colors.onSurface, fontSize: 11, fontWeight: "800" },

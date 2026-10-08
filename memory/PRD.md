@@ -88,6 +88,10 @@ TikTok/Reels tarzı dikey kaydırmalı bir öğrenme uygulaması: kullanıcılar
 - Swipe dahil tüm alt navigasyon etiketleri kaldırıldı; Swipe ikonu, metin varkenki dikey hizasında korunurken diğer sekme ikonları %15 büyütülerek dikey olarak ortalandı.
 - Rütbeler sekmesindeki kupa, Ekonomi kategorisinden ayrışan podium/sıralama simgesiyle değiştirildi.
 
+## Implemented (2026-10-04) — Dinamik yorum paneli
+- Yorum paneli klavye kapalıyken ekranın %62’sini, açıkken %50’sini kaplar; yükseklik geçişi akıcı biçimde animasyonludur.
+- Panel açılışında yorum alanı otomatik odaklanır; yorum listesi bağımsız kayar ve yazma alanı sabit görünür kalır.
+
 ## Prioritized Backlog
 - **P0**: Android production APK: gerçek production backend URL'sini build ortamına `EXPO_PUBLIC_BACKEND_URL` olarak tanımla, Atlas üretim bağlantısını doğrula ve APK'yı bu URL ile yeniden oluştur.
 - **P0**: Rütbe sistemi UI'ı (kullanıcı rütbe isimlerini/eşiklerini verecek — bekleniyor)
