@@ -93,6 +93,10 @@ TikTok/Reels tarzı dikey kaydırmalı bir öğrenme uygulaması: kullanıcılar
 - Panel açılışında yorum alanı otomatik odaklanır; yorum listesi bağımsız kayar ve yazma alanı sabit görünür kalır.
 - Modal dışı ekran ölçümü kaldırılarak Android/iOS klavye kaçınması tek bir üst sarmalayıcıda yönetilir.
 
+## Implemented (2026-10-04) — Günlük soru limiti kartı
+- Soru oluşturma ekranında, yayın limiti API’sine bağlanmaya hazır kompakt bilgi kartı eklendi; API olmadığı için normal kullanıcılara gerçek olmayan sayaç gösterilmez.
+- Mevcut güvenilir `is_admin` rolü olan hesaplarda kart, sınırsız yayın durumunu gösterir. Sunucu tarafı limit sistemi henüz mevcut değildir.
+
 ## Prioritized Backlog
 - **P0**: Android production APK: gerçek production backend URL'sini build ortamına `EXPO_PUBLIC_BACKEND_URL` olarak tanımla, Atlas üretim bağlantısını doğrula ve APK'yı bu URL ile yeniden oluştur.
 - **P0**: Rütbe sistemi UI'ı (kullanıcı rütbe isimlerini/eşiklerini verecek — bekleniyor)

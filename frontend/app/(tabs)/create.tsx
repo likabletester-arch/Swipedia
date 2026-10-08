@@ -28,6 +28,8 @@ import { makeStyles, useTheme } from "@/src/theme";
 import { ImageFlowError, pickCroppedImage } from "@/src/utils/image-upload";
 
 const CATEGORIES = CATEGORY_DEFS;
+type DailyQuestionLimit = { remaining: number; refreshText?: string } | null;
+const dailyQuestionLimit: DailyQuestionLimit = null;
 
 const PRESET_BACKGROUNDS = [
   "https://customer-assets-m6fa6gv7.emergentagent.net/job_micro-genius-3/artifacts/93swrgde_beyaz%20soru%20arka%20plan%C4%B1.jpg",
@@ -110,6 +112,22 @@ export default function CreateScreen() {
     }
   };
 
+  const DailyQuestionLimitCard = ({ limit, unlimited }: { limit: DailyQuestionLimit; unlimited: boolean }) => {
+    const available = typeof limit?.remaining === "number";
+    const remaining = limit?.remaining ?? 0;
+    const status = unlimited ? "Unlimited publishing" : available ? `${remaining}/3 left` : "—";
+    const detail = unlimited ? null : available ? (remaining === 3 ? "All question slots are available" : limit.refreshText) : "Publishing limit data unavailable";
+
+    return <View style={styles.limitCard} testID="daily-question-limit-card">
+      <View style={styles.limitHeader}>
+        <View style={styles.limitTitleRow}><Ionicons name="layers-outline" size={16} color="#FF6B4A" /><Text style={styles.limitTitle}>Daily question limit</Text></View>
+        <Text testID="daily-question-limit-status" style={styles.limitStatus}>{status}</Text>
+      </View>
+      {!unlimited && <View style={styles.limitSegments}>{[0, 1, 2].map((index) => <View key={index} testID={`daily-question-limit-segment-${index}`} style={[styles.limitSegment, { backgroundColor: available && index < remaining ? "#FF6B4A" : available ? "#59413A" : "#4D3027" }]} />)}</View>}
+      {!!detail && <Text style={styles.limitDetail}>{detail}</Text>}
+    </View>;
+  };
+
   return (
     <View style={styles.screen} testID="create-screen">
       <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
@@ -123,6 +141,7 @@ export default function CreateScreen() {
       </View>
 
       <KeyboardAwareScrollView contentContainerStyle={[styles.formScroll, { paddingBottom: bottomChrome + 26 }]} bottomOffset={24}>
+        <DailyQuestionLimitCard limit={dailyQuestionLimit} unlimited={!!user?.is_admin} />
         <Text style={styles.sectionLabel}>{t("create.topic")}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
           {CATEGORIES.map((item) => (
@@ -218,6 +237,14 @@ const useStyles = makeStyles((colors) => StyleSheet.create({
   headerHint: { color: colors.muted, fontSize: 10, marginTop: 2 },
   iconButton: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.surfaceSecondary, alignItems: "center", justifyContent: "center" },
   formScroll: { paddingHorizontal: 18, paddingTop: 2 },
+  limitCard: { backgroundColor: "#261B17", borderWidth: 1, borderColor: "#4D3027", borderRadius: 12, padding: 12, marginTop: 4 },
+  limitHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  limitTitleRow: { flexDirection: "row", alignItems: "center", gap: 7 },
+  limitTitle: { color: "#FFFFFF", fontSize: 12, fontWeight: "800" },
+  limitStatus: { color: "#FF6B4A", fontSize: 11, fontWeight: "900" },
+  limitSegments: { flexDirection: "row", gap: 5, marginTop: 11 },
+  limitSegment: { flex: 1, height: 6, borderRadius: 999 },
+  limitDetail: { color: "#B9A9A1", fontSize: 10, marginTop: 9 },
   sectionLabel: { color: colors.onSurface, fontSize: 12, fontWeight: "800", marginBottom: 8, marginTop: 14 },
   createHint: { color: colors.muted, lineHeight: 16, fontSize: 10, marginBottom: 6 },
   chipRow: { gap: 7, paddingRight: 18 },
