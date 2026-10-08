@@ -91,6 +91,7 @@ TikTok/Reels tarzı dikey kaydırmalı bir öğrenme uygulaması: kullanıcılar
 ## Implemented (2026-10-04) — Dinamik yorum paneli
 - Yorum paneli klavye kapalıyken ekranın %62’sini, açıkken %50’sini kaplar; yükseklik geçişi akıcı biçimde animasyonludur.
 - Panel açılışında yorum alanı otomatik odaklanır; yorum listesi bağımsız kayar ve yazma alanı sabit görünür kalır.
+- Android’de pencere yeniden boyutlanması kullanılır; böylece yorum modalında çift klavye kaçınması oluşmaz.
 
 ## Prioritized Backlog
 - **P0**: Android production APK: gerçek production backend URL'sini build ortamına `EXPO_PUBLIC_BACKEND_URL` olarak tanımla, Atlas üretim bağlantısını doğrula ve APK'yı bu URL ile yeniden oluştur.

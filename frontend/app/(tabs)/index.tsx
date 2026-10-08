@@ -428,7 +428,7 @@ export default function FeedScreen() {
       <Modal visible={!!active && !shareOpen} transparent animationType="slide" onRequestClose={() => setActive(null)} onShow={() => requestAnimationFrame(() => commentInputRef.current?.focus())}>
         <View style={styles.modalBackdrop}>
           <Pressable style={{ flex: 1 }} onPress={() => setActive(null)} />
-          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}>
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
             <Animated.View style={[styles.sheet, styles.commentsSheet, commentSheetStyle]} testID="comments-sheet">
               <View style={styles.sheetHandle} />
               <Text style={styles.sheetTitle}>{t("feed.comments")}</Text>
