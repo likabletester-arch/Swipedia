@@ -89,9 +89,9 @@ TikTok/Reels tarzı dikey kaydırmalı bir öğrenme uygulaması: kullanıcılar
 - Rütbeler sekmesindeki kupa, Ekonomi kategorisinden ayrışan podium/sıralama simgesiyle değiştirildi.
 
 ## Implemented (2026-10-04) — Dinamik yorum paneli
-- Yorum paneli klavye kapalıyken ekranın %62’sini, açıkken %50’sini kaplar; yükseklik geçişi akıcı biçimde animasyonludur.
+- Yorum paneli klavye kapalıyken ekranın %62’sini kaplar; klavye açıkken modalın kendi kullanılabilir alanına göre yeniden boyutlanır ve klavyenin üstünde kalır.
 - Panel açılışında yorum alanı otomatik odaklanır; yorum listesi bağımsız kayar ve yazma alanı sabit görünür kalır.
-- Android’de pencere yeniden boyutlanması kullanılır; böylece yorum modalında çift klavye kaçınması oluşmaz.
+- Modal dışı ekran ölçümü kaldırılarak Android/iOS klavye kaçınması tek bir üst sarmalayıcıda yönetilir.
 
 ## Prioritized Backlog
 - **P0**: Android production APK: gerçek production backend URL'sini build ortamına `EXPO_PUBLIC_BACKEND_URL` olarak tanımla, Atlas üretim bağlantısını doğrula ve APK'yı bu URL ile yeniden oluştur.
