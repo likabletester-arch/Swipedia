@@ -66,6 +66,7 @@ export type Person = { user_id: string; name: string; username: string; bio?: st
 export type Message = { message_id: string; sender_id: string; recipient_id: string; sender_name: string; text: string; question_id?: string; created_at: string };
 export type Conversation = { participants: string[]; other_name: string; last_message: string; updated_at: string };
 export type Leader = { rank: number; user_id: string; name: string; points: number; correct_count: number; avatar?: string };
+export type QuestionPublishingLimit = { unlimited: boolean; limit: number; remaining: number; next_refresh_at: string | null };
 export type Notification = {
   notification_id: string;
   user_id: string;
@@ -211,6 +212,7 @@ export const toggleLike = (questionId: string) => api<{ liked: boolean; likes: n
 export const toggleFollow = (userId: string) => api<{ following: boolean; followers_count: number; following_count: number; is_following: boolean }>(`/users/${userId}/follow`, { method: "POST" }, true);
 export const createQuestion = (payload: { category: string; text: string; options: string[]; correct_index: number; explanation: string; difficulty: string; background?: string | null }) =>
   api<Question>("/questions", { method: "POST", body: JSON.stringify(payload) }, true);
+export const fetchQuestionPublishingLimit = () => api<QuestionPublishingLimit>("/questions/publishing-limit", {}, true);
 export const deleteQuestion = (questionId: string) => api<{ ok: boolean }>(`/questions/${questionId}`, { method: "DELETE" }, true);
 export const fetchModeration = (userId: string) => api<ModerationSummary>(`/admin/users/${userId}/moderation`, {}, true);
 export const deleteModeratedQuestion = (userId: string, questionId: string) => api<{ ok: boolean }>(`/admin/users/${userId}/questions/${questionId}`, { method: "DELETE" }, true);

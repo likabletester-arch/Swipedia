@@ -94,8 +94,8 @@ TikTok/Reels tarzı dikey kaydırmalı bir öğrenme uygulaması: kullanıcılar
 - Modal dışı ekran ölçümü kaldırılarak Android/iOS klavye kaçınması tek bir üst sarmalayıcıda yönetilir.
 
 ## Implemented (2026-10-04) — Günlük soru limiti kartı
-- Soru oluşturma ekranında, yayın limiti API’sine bağlanmaya hazır kompakt bilgi kartı eklendi; API olmadığı için normal kullanıcılara gerçek olmayan sayaç gösterilmez.
-- Mevcut güvenilir `is_admin` rolü olan hesaplarda kart, sınırsız yayın durumunu gösterir. Sunucu tarafı limit sistemi henüz mevcut değildir.
+- Soru oluşturma ekranındaki kart, sunucudan gerçek 3 soru / kayan 24 saat durumunu ve en yakın slot yenilenme zamanını alır; ekrana dönüşte ve başarılı yayından sonra güncellenir.
+- Sunucu, normal hesaplar için limiti yayın öncesi uygular. Güvenilir `is_admin`/`role=admin` kimliği olan resmi yönetici hesapları hem kartta hem de sunucuda sınırsız yayın muafiyetine sahiptir.
 
 ## Prioritized Backlog
 - **P0**: Android production APK: gerçek production backend URL'sini build ortamına `EXPO_PUBLIC_BACKEND_URL` olarak tanımla, Atlas üretim bağlantısını doğrula ve APK'yı bu URL ile yeniden oluştur.

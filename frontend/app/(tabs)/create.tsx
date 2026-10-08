@@ -1,8 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as Linking from "expo-linking";
-import { useEffect, useState } from "react";
-import { useRouter } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
 import {
   ActivityIndicator,
   Modal,
@@ -16,7 +16,7 @@ import {
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { createQuestion, uploadImage } from "@/src/api";
+import { createQuestion, fetchQuestionPublishingLimit, uploadImage, type QuestionPublishingLimit } from "@/src/api";
 import { CATEGORY_DEFS } from "@/src/categories";
 import { ToastView, useToast } from "@/src/components/toast";
 import { useI18n } from "@/src/i18n";
@@ -28,8 +28,6 @@ import { makeStyles, useTheme } from "@/src/theme";
 import { ImageFlowError, pickCroppedImage } from "@/src/utils/image-upload";
 
 const CATEGORIES = CATEGORY_DEFS;
-type DailyQuestionLimit = { remaining: number; refreshText?: string } | null;
-const dailyQuestionLimit: DailyQuestionLimit = null;
 
 const PRESET_BACKGROUNDS = [
   "https://customer-assets-m6fa6gv7.emergentagent.net/job_micro-genius-3/artifacts/93swrgde_beyaz%20soru%20arka%20plan%C4%B1.jpg",
@@ -64,10 +62,23 @@ export default function CreateScreen() {
   const [uploading, setUploading] = useState(false);
   const [permDenied, setPermDenied] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [dailyQuestionLimit, setDailyQuestionLimit] = useState<QuestionPublishingLimit | null>(null);
+  const [limitError, setLimitError] = useState(false);
 
   useEffect(() => {
     if (user?.is_guest && !requireAccount(t("guest.question"))) router.replace("/(tabs)");
   }, [requireAccount, router, t, user?.is_guest]);
+
+  const loadQuestionLimit = useCallback(async () => {
+    try {
+      setDailyQuestionLimit(await fetchQuestionPublishingLimit());
+      setLimitError(false);
+    } catch {
+      setLimitError(true);
+    }
+  }, []);
+
+  useFocusEffect(useCallback(() => { loadQuestionLimit(); }, [loadQuestionLimit]));
 
   const updateOption = (value: string, index: number) => setOptions((old) => old.map((item, i) => (i === index ? value : item)));
 
@@ -105,6 +116,7 @@ export default function CreateScreen() {
       setDifficulty("kolay");
       setBackground(null);
       setBackgroundPreview(null);
+      await loadQuestionLimit();
     } catch (err) {
       toast.show(err instanceof Error ? err.message : t("auth.error"));
     } finally {
@@ -112,11 +124,11 @@ export default function CreateScreen() {
     }
   };
 
-  const DailyQuestionLimitCard = ({ limit, unlimited }: { limit: DailyQuestionLimit; unlimited: boolean }) => {
+  const DailyQuestionLimitCard = ({ limit, unlimited, error }: { limit: QuestionPublishingLimit | null; unlimited: boolean; error: boolean }) => {
     const available = typeof limit?.remaining === "number";
     const remaining = limit?.remaining ?? 0;
     const status = unlimited ? "Unlimited publishing" : available ? `${remaining}/3 left` : "—";
-    const detail = unlimited ? null : available ? (remaining === 3 ? "All question slots are available" : limit.refreshText) : "Publishing limit data unavailable";
+    const detail = unlimited ? null : available ? (remaining === 3 ? "All question slots are available" : refreshText(limit.next_refresh_at)) : error ? "Could not load publishing limit" : "Loading publishing limit";
 
     return <View style={styles.limitCard} testID="daily-question-limit-card">
       <View style={styles.limitHeader}>
@@ -141,7 +153,7 @@ export default function CreateScreen() {
       </View>
 
       <KeyboardAwareScrollView contentContainerStyle={[styles.formScroll, { paddingBottom: bottomChrome + 26 }]} bottomOffset={24}>
-        <DailyQuestionLimitCard limit={dailyQuestionLimit} unlimited={!!user?.is_admin} />
+        <DailyQuestionLimitCard limit={dailyQuestionLimit} unlimited={dailyQuestionLimit?.unlimited ?? !!user?.is_admin} error={limitError} />
         <Text style={styles.sectionLabel}>{t("create.topic")}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
           {CATEGORIES.map((item) => (
@@ -228,6 +240,12 @@ export default function CreateScreen() {
       <ToastView message={toast.message} bottom={bottomChrome + 24} />
     </View>
   );
+}
+
+function refreshText(timestamp: string | null) {
+  if (!timestamp) return "Publishing limit is updating";
+  const minutes = Math.max(0, Math.ceil((new Date(timestamp).getTime() - Date.now()) / 60000));
+  return `Next slot refreshes in ${Math.floor(minutes / 60)}h ${minutes % 60}m`;
 }
 
 const useStyles = makeStyles((colors) => StyleSheet.create({

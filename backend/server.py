@@ -36,6 +36,8 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ["DB_NAME"]]
 SESSION_DAYS = 7
 FEED_BATCH_MAX = 20
+QUESTION_PUBLISH_LIMIT = 3
+QUESTION_PUBLISH_WINDOW = timedelta(hours=24)
 
 app = FastAPI(title="Swipedia API")
 api_router = APIRouter(prefix="/api")
@@ -1034,6 +1036,29 @@ def published_question_filter(category: Optional[str] = None) -> Dict[str, Any]:
     return filters
 
 
+def is_publish_limit_exempt(user: Dict[str, Any]) -> bool:
+    return bool(user.get("is_admin") or user.get("role") == "admin")
+
+
+async def publishing_limit_status(user: Dict[str, Any]) -> Dict[str, Any]:
+    if is_publish_limit_exempt(user):
+        return {"unlimited": True, "limit": QUESTION_PUBLISH_LIMIT, "remaining": QUESTION_PUBLISH_LIMIT, "next_refresh_at": None}
+    cutoff = now_utc() - QUESTION_PUBLISH_WINDOW
+    recent = await db.questions.find(
+        {"author_id": user["user_id"], "created_at": {"$gte": cutoff}},
+        {"_id": 0, "created_at": 1},
+    ).sort("created_at", 1).to_list(QUESTION_PUBLISH_LIMIT)
+    remaining = max(0, QUESTION_PUBLISH_LIMIT - len(recent))
+    next_refresh_at = None
+    if recent:
+        created_at = recent[0].get("created_at")
+        if isinstance(created_at, datetime):
+            if created_at.tzinfo is None:
+                created_at = created_at.replace(tzinfo=timezone.utc)
+            next_refresh_at = (created_at + QUESTION_PUBLISH_WINDOW).isoformat()
+    return {"unlimited": False, "limit": QUESTION_PUBLISH_LIMIT, "remaining": remaining, "next_refresh_at": next_refresh_at}
+
+
 async def random_feed_questions(user_id: Optional[str], category: Optional[str], limit: int) -> List[Dict[str, Any]]:
     filters = published_question_filter(category)
     if not user_id:
@@ -1121,6 +1146,11 @@ async def feed(request: Request, limit: int = 12, category: Optional[str] = None
         liked_ids = {item["question_id"] for item in liked}
     questions = await random_feed_questions(user["user_id"] if user else None, category, limit)
     return [question_public(item, item["question_id"] in saved_ids, item["question_id"] in liked_ids) for item in questions]
+
+
+@api_router.get("/questions/publishing-limit")
+async def question_publishing_limit(user: Dict[str, Any] = Depends(require_registered_user)) -> Dict[str, Any]:
+    return await publishing_limit_status(user)
 
 
 @api_router.post("/questions/{question_id}/like")
@@ -1245,6 +1275,9 @@ async def add_comment(question_id: str, payload: CommentRequest, user: Dict[str,
 async def create_question(payload: QuestionCreate, user: Dict[str, Any] = Depends(require_registered_user)) -> Dict[str, Any]:
     if payload.difficulty not in DIFFICULTIES:
         raise HTTPException(status_code=422, detail="Geçersiz zorluk seviyesi")
+    limit = await publishing_limit_status(user)
+    if not limit["unlimited"] and limit["remaining"] <= 0:
+        raise HTTPException(status_code=429, detail="Günlük soru yayınlama limitine ulaştın. Bir sonraki slot açıldığında tekrar deneyebilirsin.")
     moderation_status = await moderate_question({
         "text": payload.text,
         "options": payload.options,
