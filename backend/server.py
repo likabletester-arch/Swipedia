@@ -9,6 +9,7 @@ import logging
 import os
 import re
 import secrets
+import unicodedata
 import uuid
 from html import escape
 from html.parser import HTMLParser
@@ -25,6 +26,7 @@ from fastapi.responses import Response
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, EmailStr, Field
 from pymongo import UpdateOne
+from pymongo.errors import DuplicateKeyError
 from starlette.middleware.cors import CORSMiddleware
 from moderation import moderate_question
 
@@ -38,6 +40,7 @@ SESSION_DAYS = 7
 FEED_BATCH_MAX = 20
 QUESTION_PUBLISH_LIMIT = 3
 QUESTION_PUBLISH_WINDOW = timedelta(hours=24)
+DUPLICATE_QUESTION_MESSAGE = "Bu soruyu daha önce yayınladın. Lütfen farklı bir soru oluştur."
 
 app = FastAPI(title="Swipedia API")
 api_router = APIRouter(prefix="/api")
@@ -615,6 +618,7 @@ async def seed_database() -> None:
     await db.user_sessions.create_index("session_token", unique=True)
     await db.user_sessions.create_index("expires_at", expireAfterSeconds=0)
     await db.questions.create_index("question_id", unique=True)
+    await db.question_text_history.create_index([("user_id", 1), ("text_hash", 1)], unique=True)
     await db.saved_questions.create_index([("user_id", 1), ("question_id", 1)], unique=True)
     await db.question_likes.create_index([("user_id", 1), ("question_id", 1)], unique=True)
     await db.follows.create_index([("follower_id", 1), ("following_id", 1)], unique=True)
@@ -1036,6 +1040,25 @@ def published_question_filter(category: Optional[str] = None) -> Dict[str, Any]:
     return filters
 
 
+def normalized_question_hash(text: str) -> str:
+    """Türkçe büyük/küçük harf ve önemsiz noktalama farklarını tek anahtarda toplar."""
+    value = unicodedata.normalize("NFC", text).translate(str.maketrans({"I": "ı", "İ": "i"})).casefold()
+    value = "".join(char for char in value if not unicodedata.category(char).startswith("P"))
+    return hashlib.sha256(" ".join(value.split()).encode("utf-8")).hexdigest()
+
+
+async def ensure_not_duplicate_question(user_id: str, text_hash: str) -> None:
+    if await db.question_text_history.find_one({"user_id": user_id, "text_hash": text_hash}, {"_id": 0, "text_hash": 1}):
+        raise HTTPException(status_code=409, detail=DUPLICATE_QUESTION_MESSAGE)
+    async for question in db.questions.find({"author_id": user_id, "is_published": True}, {"_id": 0, "question_id": 1, "text": 1}):
+        if normalized_question_hash(question.get("text", "")) == text_hash:
+            try:
+                await db.question_text_history.insert_one({"user_id": user_id, "text_hash": text_hash, "question_id": question["question_id"], "created_at": now_utc()})
+            except DuplicateKeyError:
+                pass
+            raise HTTPException(status_code=409, detail=DUPLICATE_QUESTION_MESSAGE)
+
+
 def is_publish_limit_exempt(user: Dict[str, Any]) -> bool:
     return bool(user.get("is_admin") or user.get("role") == "admin")
 
@@ -1045,7 +1068,7 @@ async def publishing_limit_status(user: Dict[str, Any]) -> Dict[str, Any]:
         return {"unlimited": True, "limit": QUESTION_PUBLISH_LIMIT, "remaining": QUESTION_PUBLISH_LIMIT, "next_refresh_at": None}
     cutoff = now_utc() - QUESTION_PUBLISH_WINDOW
     recent = await db.questions.find(
-        {"author_id": user["user_id"], "created_at": {"$gte": cutoff}},
+        {"author_id": user["user_id"], "is_published": True, "created_at": {"$gte": cutoff}},
         {"_id": 0, "created_at": 1},
     ).sort("created_at", 1).to_list(QUESTION_PUBLISH_LIMIT)
     remaining = max(0, QUESTION_PUBLISH_LIMIT - len(recent))
@@ -1275,6 +1298,8 @@ async def add_comment(question_id: str, payload: CommentRequest, user: Dict[str,
 async def create_question(payload: QuestionCreate, user: Dict[str, Any] = Depends(require_registered_user)) -> Dict[str, Any]:
     if payload.difficulty not in DIFFICULTIES:
         raise HTTPException(status_code=422, detail="Geçersiz zorluk seviyesi")
+    text_hash = normalized_question_hash(payload.text)
+    await ensure_not_duplicate_question(user["user_id"], text_hash)
     limit = await publishing_limit_status(user)
     if not limit["unlimited"] and limit["remaining"] <= 0:
         raise HTTPException(status_code=429, detail="Günlük soru yayınlama limitine ulaştın. Bir sonraki slot açıldığında tekrar deneyebilirsin.")
@@ -1306,7 +1331,19 @@ async def create_question(payload: QuestionCreate, user: Dict[str, Any] = Depend
         "moderation_status": moderation_status,
         "created_at": now_utc(),
     }
-    await db.questions.insert_one(question.copy())
+    history_record = None
+    if moderation_status == "safe":
+        history_record = {"user_id": user["user_id"], "text_hash": text_hash, "question_id": question["question_id"], "created_at": now_utc()}
+        try:
+            await db.question_text_history.insert_one(history_record)
+        except DuplicateKeyError:
+            raise HTTPException(status_code=409, detail=DUPLICATE_QUESTION_MESSAGE)
+    try:
+        await db.questions.insert_one(question.copy())
+    except Exception:
+        if history_record:
+            await db.question_text_history.delete_one({"user_id": user["user_id"], "text_hash": text_hash, "question_id": question["question_id"]})
+        raise
     # Takipçilere yeni soru bildirimi
     if moderation_status == "safe":
         followers = await db.follows.find({"following_id": user["user_id"]}, {"_id": 0, "follower_id": 1}).to_list(500)

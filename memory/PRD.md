@@ -97,6 +97,10 @@ TikTok/Reels tarzı dikey kaydırmalı bir öğrenme uygulaması: kullanıcılar
 - Soru oluşturma ekranındaki kart, sunucudan gerçek 3 soru / kayan 24 saat durumunu ve en yakın slot yenilenme zamanını alır; ekrana dönüşte ve başarılı yayından sonra güncellenir.
 - Sunucu, normal hesaplar için limiti yayın öncesi uygular. Güvenilir `is_admin`/`role=admin` kimliği olan resmi yönetici hesapları hem kartta hem de sunucuda sınırsız yayın muafiyetine sahiptir.
 
+## Implemented (2026-10-04) — Aynı kullanıcı için yinelenen soru engeli
+- Sunucu soru metnini Türkçe Unicode/büyük-küçük harf, boşluk ve noktalama farklarını normalize ederek kullanıcı-kapsamlı hash ile kontrol eder.
+- Benzersiz geçmiş kaydı eşzamanlı tekrarları engeller ve soru silinse dahi korunur; yayın limiti yalnızca gerçekten yayınlanan soruları saymaya devam eder.
+
 ## Prioritized Backlog
 - **P0**: Android production APK: gerçek production backend URL'sini build ortamına `EXPO_PUBLIC_BACKEND_URL` olarak tanımla, Atlas üretim bağlantısını doğrula ve APK'yı bu URL ile yeniden oluştur.
 - **P0**: Rütbe sistemi UI'ı (kullanıcı rütbe isimlerini/eşiklerini verecek — bekleniyor)
